@@ -58,6 +58,9 @@ def load_config(
             config_data = {**config_data, **profile_data}
             logger.info("applied_profile", profile=profile)
 
+        # Remove profiles field before passing to AppConfig
+        config_data.pop("profiles", None)
+
     # Create config (environment variables override file config)
     config = AppConfig(**config_data)
     logger.info(

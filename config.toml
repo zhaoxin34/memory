@@ -1,0 +1,65 @@
+# Memory Configuration File
+# This is an example configuration file for the Memory knowledge base system.
+# Copy this file to config.toml and customize for your needs.
+
+# Application settings
+app_name = "memory"
+log_level = "INFO"     # DEBUG, INFO, WARNING, ERROR, CRITICAL
+json_logs = false
+data_dir = "~/.memory"
+
+# Embedding provider configuration
+[embedding]
+provider = "local"              # Options: local, openai, mock
+model_name = "all-MiniLM-L6-v2"
+batch_size = 32
+# api_key = "${OPENAI_API_KEY}"  # Uncomment for OpenAI
+
+# LLM provider configuration
+[llm]
+provider = "openai"           # Options: openai, anthropic, mock
+model_name = "gpt-4"
+api_key = "${OPENAI_API_KEY}" # Use environment variable
+max_tokens = 2000
+temperature = 0.7
+
+# Vector store configuration
+[vector_store]
+store_type = "chroma"                  # Options: chroma, qdrant, faiss, memory
+collection_name = "memory"
+persist_directory = "~/.memory/chroma"
+
+# Metadata store configuration
+[metadata_store]
+store_type = "sqlite"                               # Options: sqlite, postgres, memory
+connection_string = "sqlite:///~/.memory/memory.db"
+
+# Document chunking configuration
+[chunking]
+chunk_size = 512
+chunk_overlap = 50
+min_chunk_size = 100
+
+# Deployment profiles
+# Use with: memory --profile local
+
+[profiles.local]
+log_level = "DEBUG"
+[profiles.local.embedding]
+provider = "local"
+
+[profiles.server]
+log_level = "INFO"
+json_logs = true
+[profiles.server.vector_store]
+store_type = "qdrant"
+connection_string = "http://localhost:6333"
+
+[profiles.cloud]
+log_level = "WARNING"
+json_logs = true
+[profiles.cloud.embedding]
+provider = "openai"
+[profiles.cloud.vector_store]
+store_type = "qdrant"
+connection_string = "${QDRANT_URL}"

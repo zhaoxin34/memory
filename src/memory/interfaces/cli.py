@@ -93,7 +93,6 @@ async def _ask_async(question: str, top_k: int, config_file: Optional[Path]):
 
 @app.command()
 def info(
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Show system information and configuration."""
     config = _load_config(config_file)

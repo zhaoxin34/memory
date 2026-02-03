@@ -13,7 +13,7 @@ How to extend:
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -27,7 +27,7 @@ class StorageConfig(BaseModel):
     storage_type: str
     connection_string: Optional[str] = None
     collection_name: str = "memory"
-    extra_params: dict[str, any] = {}
+    extra_params: dict[str, Any] = {}
 
 
 class VectorStore(ABC):
