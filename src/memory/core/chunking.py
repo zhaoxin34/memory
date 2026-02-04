@@ -73,7 +73,7 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     """
     chunks = []
 
-    for idx, (chunk_text, start_char, end_char) in enumerate(
+    for idx, (text_content, start_char, end_char) in enumerate(
         chunk_text(
             document.content,
             config.chunk_size,
@@ -82,16 +82,12 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
         )
     ):
         chunk = Chunk(
+            repository_id=document.repository_id,
             document_id=document.id,
-            content=chunk_text,
+            content=text_content,
             chunk_index=idx,
             start_char=start_char,
             end_char=end_char,
-            metadata={
-                "document_title": document.title,
-                "document_type": document.doc_type,
-                "source_path": document.source_path,
-            },
         )
         chunks.append(chunk)
 

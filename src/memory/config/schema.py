@@ -130,6 +130,7 @@ class AppConfig(BaseSettings):
     log_level: LogLevel = LogLevel.INFO
     json_logs: bool = False
     data_dir: Path = Field(default=Path.home() / ".memory")
+    default_repository: str = "default"
 
     # Component configurations
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)

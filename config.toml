@@ -7,32 +7,59 @@ app_name = "memory"
 log_level = "INFO"     # DEBUG, INFO, WARNING, ERROR, CRITICAL
 json_logs = false
 data_dir = "~/.memory"
+default_repository = "default"  # Default repository for documents (can be overridden with MEMORY_DEFAULT_REPOSITORY)
 
 # Embedding provider configuration
+# Choose between local (sentence-transformers) or OpenAI embeddings
 [embedding]
-provider = "local"              # Options: local, openai, mock
-model_name = "all-MiniLM-L6-v2"
+provider = "local"              # Options: local, openai
+model_name = "all-MiniLM-L6-v2" # For local: all-MiniLM-L6-v2, all-mpnet-base-v2, etc.
+                                # For openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
 batch_size = 32
-# api_key = "${OPENAI_API_KEY}"  # Uncomment for OpenAI
 
-# LLM provider configuration
+# For local provider: Install with `uv sync --extra local`
+# This will install sentence-transformers and torch
+
+# For OpenAI provider: Install with `uv sync --extra openai`
+# Uncomment the line below and set your API key:
+# api_key = "${OPENAI_API_KEY}"  # Use environment variable or set directly
+
+# Example OpenAI configuration:
+# [embedding]
+# provider = "openai"
+# model_name = "text-embedding-3-small"
+# api_key = "${OPENAI_API_KEY}"
+# batch_size = 100
+
+# LLM provider configuration (for ask command)
+# Note: LLM providers are not yet implemented
 [llm]
-provider = "openai"           # Options: openai, anthropic, mock
+provider = "openai"           # Options: openai, anthropic (not yet implemented)
 model_name = "gpt-4"
 api_key = "${OPENAI_API_KEY}" # Use environment variable
 max_tokens = 2000
 temperature = 0.7
 
 # Vector store configuration
+# Chroma is recommended for local persistent storage
 [vector_store]
-store_type = "chroma"                  # Options: chroma, qdrant, faiss, memory
+store_type = "chroma"           # Options: chroma, memory
 collection_name = "memory"
+
+# Chroma-specific settings (install with `uv sync --extra chroma`)
+[vector_store.extra_params]
 persist_directory = "~/.memory/chroma"
 
+# For in-memory storage (no persistence, useful for testing):
+# [vector_store]
+# store_type = "memory"
+# collection_name = "memory"
+
 # Metadata store configuration
+# Currently only in-memory is supported
 [metadata_store]
-store_type = "sqlite"                               # Options: sqlite, postgres, memory
-connection_string = "sqlite:///~/.memory/memory.db"
+store_type = "memory"           # Options: memory
+collection_name = "memory"
 
 # Document chunking configuration
 [chunking]
@@ -40,26 +67,64 @@ chunk_size = 512
 chunk_overlap = 50
 min_chunk_size = 100
 
+# ============================================================================
 # Deployment profiles
-# Use with: memory --profile local
+# Use with: memory --profile <profile_name>
+# ============================================================================
 
+# Local development profile: Uses local embeddings and Chroma
 [profiles.local]
 log_level = "DEBUG"
 [profiles.local.embedding]
 provider = "local"
+model_name = "all-MiniLM-L6-v2"
+[profiles.local.vector_store]
+store_type = "chroma"
+[profiles.local.vector_store.extra_params]
+persist_directory = "~/.memory/chroma"
 
-[profiles.server]
+# OpenAI profile: Uses OpenAI embeddings with Chroma storage
+[profiles.openai]
 log_level = "INFO"
-json_logs = true
-[profiles.server.vector_store]
-store_type = "qdrant"
-connection_string = "http://localhost:6333"
-
-[profiles.cloud]
-log_level = "WARNING"
-json_logs = true
-[profiles.cloud.embedding]
+[profiles.openai.embedding]
 provider = "openai"
-[profiles.cloud.vector_store]
-store_type = "qdrant"
-connection_string = "${QDRANT_URL}"
+model_name = "text-embedding-3-small"
+api_key = "${OPENAI_API_KEY}"
+[profiles.openai.vector_store]
+store_type = "chroma"
+[profiles.openai.vector_store.extra_params]
+persist_directory = "~/.memory/chroma"
+
+# Testing profile: Uses in-memory storage (no persistence)
+[profiles.test]
+log_level = "DEBUG"
+[profiles.test.embedding]
+provider = "local"
+model_name = "all-MiniLM-L6-v2"
+[profiles.test.vector_store]
+store_type = "memory"
+[profiles.test.metadata_store]
+store_type = "memory"
+
+# ============================================================================
+# Installation Instructions
+# ============================================================================
+#
+# Install dependencies based on your chosen providers:
+#
+# For local embeddings:
+#   uv sync --extra local
+#
+# For OpenAI embeddings:
+#   uv sync --extra openai
+#
+# For Chroma vector store:
+#   uv sync --extra chroma
+#
+# Install multiple extras:
+#   uv sync --extra local --extra chroma
+#   uv sync --extra openai --extra chroma
+#
+# For development (includes all extras):
+#   uv sync --extra dev --extra local --extra openai --extra chroma
+#

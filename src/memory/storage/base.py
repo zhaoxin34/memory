@@ -18,7 +18,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from memory.core.models import Chunk, Document, Embedding, SearchResult
+from memory.core.models import Chunk, Document, Embedding, Repository, SearchResult
 
 
 class StorageConfig(BaseModel):
@@ -73,13 +73,14 @@ class VectorStore(ABC):
 
     @abstractmethod
     async def search(
-        self, query_vector: list[float], top_k: int = 10, filters: Optional[dict] = None
+        self, query_vector: list[float], top_k: int = 10, repository_id: Optional[UUID] = None, filters: Optional[dict] = None
     ) -> list[SearchResult]:
         """Search for similar embeddings.
 
         Args:
             query_vector: Query embedding vector
             top_k: Number of results to return
+            repository_id: Optional repository ID to filter results
             filters: Optional metadata filters
 
         Returns:
@@ -108,6 +109,18 @@ class VectorStore(ABC):
 
         Returns:
             True if deleted, False if not found
+        """
+        pass
+
+    @abstractmethod
+    async def delete_by_repository(self, repository_id: UUID) -> int:
+        """Delete all embeddings for a repository.
+
+        Args:
+            repository_id: Repository ID to delete
+
+        Returns:
+            Number of embeddings deleted
         """
         pass
 
@@ -205,15 +218,70 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
-    async def list_documents(self, limit: int = 100, offset: int = 0) -> list[Document]:
+    async def list_documents(self, limit: int = 100, offset: int = 0, repository_id: Optional[UUID] = None) -> list[Document]:
         """List documents with pagination.
 
         Args:
             limit: Maximum number of documents to return
             offset: Number of documents to skip
+            repository_id: Optional repository ID to filter documents
 
         Returns:
             List of documents
+        """
+        pass
+
+    @abstractmethod
+    async def add_repository(self, repository: Repository) -> None:
+        """Store a repository.
+
+        Args:
+            repository: Repository to store
+        """
+        pass
+
+    @abstractmethod
+    async def get_repository(self, repository_id: UUID) -> Optional[Repository]:
+        """Retrieve a repository by ID.
+
+        Args:
+            repository_id: Repository ID
+
+        Returns:
+            Repository if found, None otherwise
+        """
+        pass
+
+    @abstractmethod
+    async def get_repository_by_name(self, name: str) -> Optional[Repository]:
+        """Retrieve a repository by name.
+
+        Args:
+            name: Repository name
+
+        Returns:
+            Repository if found, None otherwise
+        """
+        pass
+
+    @abstractmethod
+    async def list_repositories(self) -> list[Repository]:
+        """List all repositories.
+
+        Returns:
+            List of repositories
+        """
+        pass
+
+    @abstractmethod
+    async def delete_repository(self, repository_id: UUID) -> bool:
+        """Delete a repository.
+
+        Args:
+            repository_id: Repository ID
+
+        Returns:
+            True if deleted, False if not found
         """
         pass
 

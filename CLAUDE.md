@@ -58,62 +58,120 @@ CLI 使用方法请参见 [README.md#基本使用](README.md#基本使用)。
 
 1. **Provider Pattern**: 所有外部服务（嵌入、LLM、向量数据库）都通过抽象接口访问
 2. **存储分离**: VectorStore（向量存储）和 MetadataStore（元数据存储）分离
-3. **配置驱动**: 所有行为通过 TOML 配置文件控制，支持多环境配置（local, server, cloud）
-4. **类型安全**: 全面使用类型提示，Pydantic 模型验证所有数据结构
+3. **仓库隔离**: Repository 作为文档的逻辑隔离单元，每个仓库使用独立的向量集合
+4. **配置驱动**: 所有行为通过 TOML 配置文件控制，支持多环境配置（local, server, cloud）
+5. **类型安全**: 全面使用类型提示，Pydantic 模型验证所有数据结构
 
 ### 数据流
 
 **导入流程**:
 ```
-File → IngestionPipeline → Document → Chunking → Chunks
-                                                    ↓
-                                            EmbeddingProvider
-                                                    ↓
-                                    VectorStore + MetadataStore
+File → IngestionPipeline(repository_id) → Document(repository_id) → Chunking → Chunks(repository_id)
+                                                                                      ↓
+                                                                              EmbeddingProvider
+                                                                                      ↓
+                                                              VectorStore(collection_{repo_name}) + MetadataStore
 ```
 
 **查询流程**:
 ```
-Query → QueryPipeline → EmbeddingProvider → Query Vector
-                                                ↓
-                                          VectorStore.search()
-                                                ↓
-                                          LLMProvider → Answer
+Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
+                                                                ↓
+                                                    VectorStore.search(repository_id)
+                                                                ↓
+                                                          LLMProvider → Answer
 ```
+
+**仓库隔离机制**:
+- 每个 Document 和 Chunk 都有 `repository_id` 字段
+- VectorStore 为每个仓库创建独立的集合：`{collection_name}_{repository_name}`
+- 搜索时可以指定 `repository_id` 进行范围过滤
+- 删除仓库时会级联删除所有相关的文档、分块和嵌入
 
 详细架构文档请参见 [docs/architecture.md](docs/architecture.md)。
 
 ## Key Components
 
 ### Core Layer (`src/memory/core/`)
-- `models.py`: 核心领域模型（Document, Chunk, Embedding, SearchResult）
-  - Document: 源文档，包含完整内容和元数据
-  - Chunk: 文档分块，用于嵌入和检索
+- `models.py`: 核心领域模型（Repository, Document, Chunk, Embedding, SearchResult）
+  - Repository: 仓库模型，用于组织和隔离文档集合（kebab-case 命名）
+  - Document: 源文档，包含完整内容和元数据，必须属于一个仓库
+  - Chunk: 文档分块，用于嵌入和检索，继承父文档的 repository_id
   - Embedding: 向量表示，包含向量和模型信息
   - SearchResult: 检索结果，包含分块、分数和文档引用
 - `chunking.py`: 文本分块逻辑，支持可配置的块大小和重叠
+- `repository.py`: RepositoryManager 类，封装仓库 CRUD 操作
+  - `create_repository()`: 创建仓库（包含名称验证和重复检查）
+  - `get_repository()`, `get_repository_by_name()`: 检索仓库
+  - `list_repositories()`: 列出所有仓库
+  - `delete_repository()`: 删除仓库（级联删除文档、分块、嵌入）
+  - `ensure_default_repository()`: 确保默认仓库存在
 
 ### Providers Layer (`src/memory/providers/`)
 - `base.py`: EmbeddingProvider 和 LLMProvider 抽象基类
+- `local.py`: LocalEmbeddingProvider - 本地嵌入模型实现
+  - 使用 sentence-transformers 库
+  - 支持多种预训练模型（all-MiniLM-L6-v2, all-mpnet-base-v2 等）
+  - 异步支持通过 `asyncio.to_thread()`
+  - 自动模型下载和缓存
+  - 支持 HuggingFace 镜像（通过 HF_ENDPOINT 环境变量）
+- `openai.py`: OpenAIEmbeddingProvider - OpenAI 嵌入实现
+  - 使用官方 OpenAI SDK
+  - 支持 text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+  - 批处理支持（MAX_BATCH_SIZE = 2048）
+  - Token 使用量日志记录
+  - 完整的错误处理（认证、速率限制、网络错误）
+- `__init__.py`: 工厂函数 `create_embedding_provider()`
+  - 根据配置动态创建 provider 实例
+  - 自动检查依赖是否安装
+  - 友好的错误提示
 - 实现新 provider 时必须继承这些基类并实现所有抽象方法：
   - EmbeddingProvider: `embed_text()`, `embed_batch()`, `get_dimension()`, `get_max_tokens()`
   - LLMProvider: `generate()`, `count_tokens()`
 
 ### Storage Layer (`src/memory/storage/`)
 - `base.py`: VectorStore 和 MetadataStore 抽象基类
-- VectorStore 负责：向量存储、相似度搜索、批量操作、索引管理
-- MetadataStore 负责：文档和分块的 CRUD 操作、分页查询
+- `chroma.py`: ChromaVectorStore - ChromaDB 向量存储实现
+  - 持久化存储到磁盘（通过 persist_directory 配置）
+  - 仓库隔离：每个仓库使用独立集合 `{collection_name}_{repository_name}`
+  - 集合名称清理（确保符合 Chroma 命名规范）
+  - 完整的 CRUD 操作：add_embedding, add_embeddings_batch, search, delete_by_document_id, delete_by_chunk_id, delete_by_repository, count
+  - 相似度搜索支持仓库过滤和元数据过滤
+  - 上下文管理器支持（自动资源清理）
+- `memory.py`: 内存实现（用于测试和开发）
+  - InMemoryVectorStore: 使用 `{collection_name}_{repository_name}` 格式隔离集合
+  - InMemoryMetadataStore: 使用字典存储所有数据
+- `sqlite.py`: SQLite 实现（用于生产环境）
+  - 包含 repositories, documents, chunks 表
+  - 使用外键和 CASCADE DELETE 保证数据一致性
+- `__init__.py`: 工厂函数 `create_vector_store()` 和 `create_metadata_store()`
+  - 根据配置动态创建 store 实例
+  - 自动检查依赖是否安装
+  - 友好的错误提示
+- VectorStore 负责：向量存储、相似度搜索、批量操作、索引管理、按仓库隔离
+  - `search()` 方法支持可选的 `repository_id` 参数进行范围过滤
+  - `delete_by_repository()` 方法删除指定仓库的所有嵌入
+- MetadataStore 负责：文档、分块和仓库的 CRUD 操作、分页查询
+  - Repository CRUD: `add_repository()`, `get_repository()`, `get_repository_by_name()`, `list_repositories()`, `delete_repository()`
+  - `list_documents()` 支持可选的 `repository_id` 参数进行过滤
 
 ### Pipelines Layer (`src/memory/pipelines/`)
 - `ingestion.py`: 文档导入管道
   - 协调文档存储、分块、嵌入生成和向量存储
   - 支持批量处理以提高效率
+  - `__init__()` 接受可选的 `repository_id` 参数
+  - `ingest_file()` 接受可选的 `repository_id` 参数（覆盖管道默认值）
+  - 创建的 Document 和 Chunk 都会包含 repository_id
 - `query.py`: 查询管道
   - 语义搜索：生成查询向量 → 向量搜索 → 返回结果
   - LLM 问答：检索相关分块 → 构建上下文 → LLM 生成答案
+  - `__init__()` 接受可选的 `repository_id` 参数
+  - `search()` 和 `answer()` 方法支持可选的 `repository_id` 参数（覆盖管道默认值）
 
 ### Config Layer (`src/memory/config/`)
 - `schema.py`: Pydantic 配置模型，支持环境变量覆盖（MEMORY_* 前缀）
+  - AppConfig 包含 `default_repository` 字段（默认值 "default"）
+  - 可通过 `MEMORY_DEFAULT_REPOSITORY` 环境变量覆盖
 - `loader.py`: 配置加载逻辑，支持 TOML 文件和多环境配置
 
 ### Observability Layer (`src/memory/observability/`)

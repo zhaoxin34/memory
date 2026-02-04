@@ -14,6 +14,7 @@ How to use:
 """
 
 from typing import Optional
+from uuid import UUID
 
 from memory.config.schema import AppConfig
 from memory.core.models import SearchResult
@@ -34,6 +35,7 @@ class QueryPipeline:
         llm_provider: LLMProvider,
         vector_store: VectorStore,
         metadata_store: MetadataStore,
+        repository_id: Optional["UUID"] = None,
     ):
         """Initialize the query pipeline.
 
@@ -43,18 +45,21 @@ class QueryPipeline:
             llm_provider: Provider for generating answers
             vector_store: Storage for embeddings
             metadata_store: Storage for documents and chunks
+            repository_id: Optional repository ID for scoped search
         """
         self.config = config
         self.embedding_provider = embedding_provider
         self.llm_provider = llm_provider
         self.vector_store = vector_store
         self.metadata_store = metadata_store
+        self.repository_id = repository_id
 
     async def search(
         self,
         query: str,
         top_k: int = 10,
         filters: Optional[dict] = None,
+        repository_id: Optional[UUID] = None,
     ) -> list[SearchResult]:
         """Perform semantic search.
 
@@ -62,17 +67,23 @@ class QueryPipeline:
             query: Search query
             top_k: Number of results to return
             filters: Optional metadata filters
+            repository_id: Optional repository ID (overrides pipeline default)
 
         Returns:
             List of search results with scores
         """
         logger.info("search_started", query=query, top_k=top_k)
 
+        # Use provided repository_id or fall back to pipeline default
+        repo_id = repository_id or self.repository_id
+
         # Generate query embedding
         query_vector = await self.embedding_provider.embed_text(query)
 
-        # Search vector store
-        results = await self.vector_store.search(query_vector, top_k=top_k, filters=filters)
+        # Search vector store with repository filtering
+        results = await self.vector_store.search(
+            query_vector, top_k=top_k, repository_id=repo_id, filters=filters
+        )
 
         # Enrich results with document metadata
         for result in results:
@@ -88,6 +99,7 @@ class QueryPipeline:
         query: str,
         top_k: int = 5,
         max_context_length: int = 3000,
+        repository_id: Optional[UUID] = None,
     ) -> tuple[str, list[SearchResult]]:
         """Answer a question using retrieved context.
 
@@ -95,14 +107,15 @@ class QueryPipeline:
             query: Question to answer
             top_k: Number of chunks to retrieve
             max_context_length: Maximum context length in characters
+            repository_id: Optional repository ID (overrides pipeline default)
 
         Returns:
             Tuple of (answer, source_chunks)
         """
         logger.info("answer_started", query=query)
 
-        # Retrieve relevant chunks
-        results = await self.search(query, top_k=top_k)
+        # Retrieve relevant chunks with repository filtering
+        results = await self.search(query, top_k=top_k, repository_id=repository_id)
 
         if not results:
             logger.warning("no_results_found", query=query)

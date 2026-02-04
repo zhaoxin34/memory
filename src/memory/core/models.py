@@ -1,6 +1,7 @@
 """Core domain models for the knowledge base system.
 
 These models represent the fundamental entities in the system:
+- Repository: A logical container for organizing documents
 - Document: A source document (file, webpage, etc.)
 - Chunk: A segment of a document suitable for embedding
 - Embedding: A vector representation of a chunk
@@ -13,6 +14,28 @@ from typing import Any, Optional
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
+
+
+class Repository(BaseModel):
+    """A repository for organizing and isolating document collections.
+
+    Repositories provide logical isolation between different projects or topics,
+    ensuring that documents, chunks, and embeddings are kept separate.
+    """
+
+    id: UUID = Field(default_factory=uuid4)
+    name: str = Field(..., pattern="^[a-z0-9-]+$", description="Repository name (kebab-case)")
+    description: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Repository name cannot be empty")
+        return v
 
 
 class DocumentType(str, Enum):
@@ -33,6 +56,7 @@ class Document(BaseModel):
     """
 
     id: UUID = Field(default_factory=uuid4)
+    repository_id: UUID = Field(..., description="Repository this document belongs to")
     source_path: str = Field(..., description="Original path or URL of the document")
     doc_type: DocumentType = Field(default=DocumentType.UNKNOWN)
     title: Optional[str] = None
@@ -57,6 +81,7 @@ class Chunk(BaseModel):
     """
 
     id: UUID = Field(default_factory=uuid4)
+    repository_id: UUID = Field(..., description="Repository this chunk belongs to")
     document_id: UUID = Field(..., description="Parent document ID")
     content: str = Field(..., description="Text content of this chunk")
     chunk_index: int = Field(..., ge=0, description="Position in the document")

@@ -35,6 +35,7 @@ class IngestionPipeline:
         embedding_provider: EmbeddingProvider,
         vector_store: VectorStore,
         metadata_store: MetadataStore,
+        repository_id: Optional[UUID] = None,
     ):
         """Initialize the ingestion pipeline.
 
@@ -43,11 +44,13 @@ class IngestionPipeline:
             embedding_provider: Provider for generating embeddings
             vector_store: Storage for embeddings
             metadata_store: Storage for documents and chunks
+            repository_id: Optional repository ID for document isolation
         """
         self.config = config
         self.embedding_provider = embedding_provider
         self.vector_store = vector_store
         self.metadata_store = metadata_store
+        self.repository_id = repository_id
 
     async def ingest_document(self, document: Document) -> int:
         """Ingest a single document.
@@ -116,11 +119,12 @@ class IngestionPipeline:
             )
             raise IngestionError(f"Failed to ingest document: {e}") from e
 
-    async def ingest_file(self, file_path: Path) -> UUID:
+    async def ingest_file(self, file_path: Path, repository_id: Optional[UUID] = None) -> UUID:
         """Ingest a file from the filesystem.
 
         Args:
             file_path: Path to file
+            repository_id: Optional repository ID (overrides pipeline default)
 
         Returns:
             Document ID
@@ -130,6 +134,11 @@ class IngestionPipeline:
         """
         if not file_path.exists():
             raise IngestionError(f"File not found: {file_path}")
+
+        # Use provided repository_id or fall back to pipeline default
+        repo_id = repository_id or self.repository_id
+        if not repo_id:
+            raise IngestionError("repository_id is required but not provided")
 
         # Read file content
         try:
@@ -142,6 +151,7 @@ class IngestionPipeline:
 
         # Create document
         document = Document(
+            repository_id=repo_id,
             source_path=str(file_path),
             doc_type=doc_type,
             title=file_path.stem,
