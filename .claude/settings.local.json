@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(http-proxy)",
+      "Bash(unset:*)",
+      "Bash(export:*)",
+      "Bash(python -m py_compile tests/unit/test_chroma_store.py)"
+    ]
+  }
+}

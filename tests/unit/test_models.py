@@ -10,7 +10,9 @@ from memory.core.models import Chunk, Document, DocumentType, Embedding, SearchR
 
 def test_document_creation():
     """Test creating a valid document."""
+    repository_id = UUID("12345678-1234-5678-1234-567812345678")
     doc = Document(
+        repository_id=repository_id,
         source_path="/path/to/doc.md",
         doc_type=DocumentType.MARKDOWN,
         title="Test Document",
@@ -18,6 +20,7 @@ def test_document_creation():
     )
 
     assert isinstance(doc.id, UUID)
+    assert doc.repository_id == repository_id
     assert doc.source_path == "/path/to/doc.md"
     assert doc.doc_type == DocumentType.MARKDOWN
     assert doc.title == "Test Document"
@@ -27,8 +30,10 @@ def test_document_creation():
 
 def test_document_empty_content_fails():
     """Test that empty content raises validation error."""
+    repository_id = UUID("12345678-1234-5678-1234-567812345678")
     with pytest.raises(ValueError, match="Document content cannot be empty"):
         Document(
+            repository_id=repository_id,
             source_path="/path/to/doc.md",
             content="",
         )
@@ -37,7 +42,9 @@ def test_document_empty_content_fails():
 def test_chunk_creation():
     """Test creating a valid chunk."""
     doc_id = UUID("12345678-1234-5678-1234-567812345678")
+    repository_id = UUID("87654321-4321-8765-4321-876543218765")
     chunk = Chunk(
+        repository_id=repository_id,
         document_id=doc_id,
         content="This is a chunk.",
         chunk_index=0,
@@ -46,6 +53,7 @@ def test_chunk_creation():
     )
 
     assert isinstance(chunk.id, UUID)
+    assert chunk.repository_id == repository_id
     assert chunk.document_id == doc_id
     assert chunk.content == "This is a chunk."
     assert chunk.chunk_index == 0
@@ -56,8 +64,10 @@ def test_chunk_creation():
 def test_chunk_invalid_range_fails():
     """Test that invalid character range raises validation error."""
     doc_id = UUID("12345678-1234-5678-1234-567812345678")
+    repository_id = UUID("87654321-4321-8765-4321-876543218765")
     with pytest.raises(ValueError, match="end_char must be greater than start_char"):
         Chunk(
+            repository_id=repository_id,
             document_id=doc_id,
             content="Test",
             chunk_index=0,
@@ -98,11 +108,14 @@ def test_embedding_dimension_mismatch_fails():
 
 def test_search_result_creation():
     """Test creating a search result."""
+    repository_id = UUID("12345678-1234-5678-1234-567812345678")
     doc = Document(
+        repository_id=repository_id,
         source_path="/path/to/doc.md",
         content="Test content",
     )
     chunk = Chunk(
+        repository_id=repository_id,
         document_id=doc.id,
         content="Test chunk",
         chunk_index=0,

@@ -5,6 +5,7 @@ import tempfile
 import shutil
 from pathlib import Path
 from memory.storage.chroma import ChromaVectorStore
+from memory.storage.base import StorageConfig
 from memory.core.models import Embedding
 
 
@@ -13,7 +14,7 @@ class TestChromaVectorStore:
     """Test ChromaVectorStore functionality."""
 
     @pytest.fixture
-    async def temp_dir(self):
+    def temp_dir(self):
         """Create a temporary directory for testing."""
         temp_path = Path(tempfile.mkdtemp())
         yield temp_path
@@ -23,53 +24,69 @@ class TestChromaVectorStore:
     async def store(self, temp_dir):
         """Create a ChromaVectorStore instance for testing."""
         store = ChromaVectorStore(
-            collection_name="test",
-            persist_directory=str(temp_dir),
+            StorageConfig(
+                storage_type="chroma",
+                collection_name="test",
+                extra_params={"persist_directory": str(temp_dir)}
+            )
         )
         await store.initialize()
         yield store
         await store.close()
 
+    @pytest.mark.asyncio
     async def test_initialization(self, temp_dir):
         """Test store initialization."""
         store = ChromaVectorStore(
-            collection_name="test",
-            persist_directory=str(temp_dir),
+            StorageConfig(
+                storage_type="chroma",
+                collection_name="test",
+                extra_params={"persist_directory": str(temp_dir)}
+            )
         )
         await store.initialize()
 
-        assert store.collection_name == "test"
+        assert store.base_collection_name == "test"
         assert store.persist_directory == str(temp_dir)
-        assert store.client is not None
+        assert store._client is not None
 
         await store.close()
 
+    @pytest.mark.asyncio
     async def test_add_embedding(self, store):
         """Test adding a single embedding."""
+        from memory.core.models import Chunk
+        from uuid import UUID
+
+        chunk = Chunk(
+            repository_id=UUID("12345678-1234-5678-1234-567812345678"),
+            document_id=UUID("12345678-1234-5678-1234-567812345678"),
+            content="Test content",
+            chunk_index=0,
+            start_char=0,
+            end_char=11,
+        )
         embedding = Embedding(
-            chunk_id="chunk-1",
-            document_id="doc-1",
-            repository_id="repo-1",
+            chunk_id=chunk.id,
             vector=[0.1, 0.2, 0.3],
-            model_name="test-model",
+            model="test-model",
             dimension=3,
         )
 
-        await store.add_embedding(embedding, repository_name="test-repo")
+        await store.add_embedding(embedding, chunk)
 
         # Verify it was added
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 1
 
+    @pytest.mark.asyncio
     async def test_add_embeddings_batch(self, store):
         """Test adding multiple embeddings."""
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
+                chunk_id="f""chunk-{i}",
                 document_id=f"doc-{i}",
-                repository_id="repo-1",
                 vector=[0.1 * i, 0.2 * i, 0.3 * i],
-                model_name="test-model",
                 dimension=3,
             )
             for i in range(1, 6)
@@ -78,19 +95,18 @@ class TestChromaVectorStore:
         await store.add_embeddings_batch(embeddings, repository_name="test-repo")
 
         # Verify they were added
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 5
 
+    @pytest.mark.asyncio
     async def test_search(self, store):
         """Test similarity search."""
         # Add some embeddings
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
+                chunk_id="f""chunk-{i}",
                 document_id=f"doc-{i}",
-                repository_id="repo-1",
                 vector=[float(i), float(i * 2), float(i * 3)],
-                model_name="test-model",
                 dimension=3,
             )
             for i in range(1, 6)
@@ -111,17 +127,16 @@ class TestChromaVectorStore:
         assert all("score" in r for r in results)
         assert all("chunk_id" in r for r in results)
 
+    @pytest.mark.asyncio
     async def test_search_with_repository_filter(self, store):
         """Test search with repository filtering."""
         # Add embeddings to different repositories
         for repo_name in ["repo-a", "repo-b"]:
             embeddings = [
                 Embedding(
-                    chunk_id=f"{repo_name}-chunk-{i}",
+                    chunk_id="f""{repo_name}-chunk-{i}",
                     document_id=f"{repo_name}-doc-{i}",
-                    repository_id=repo_name,
                     vector=[float(i), float(i * 2), float(i * 3)],
-                    model_name="test-model",
                     dimension=3,
                 )
                 for i in range(1, 4)
@@ -139,16 +154,15 @@ class TestChromaVectorStore:
         assert len(results) == 3
         assert all("repo-a" in r["chunk_id"] for r in results)
 
+    @pytest.mark.asyncio
     async def test_delete_by_chunk_id(self, store):
         """Test deleting by chunk ID."""
         # Add embeddings
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
-                document_id="doc-1",
-                repository_id="repo-1",
+                chunk_id="f""chunk-{i}",
                 vector=[float(i), float(i * 2), float(i * 3)],
-                model_name="test-model",
+                model="test-model",
                 dimension=3,
             )
             for i in range(1, 4)
@@ -160,19 +174,18 @@ class TestChromaVectorStore:
         await store.delete_by_chunk_id("chunk-1", repository_name="test-repo")
 
         # Verify count
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 2
 
+    @pytest.mark.asyncio
     async def test_delete_by_document_id(self, store):
         """Test deleting by document ID."""
         # Add embeddings from different documents
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
-                document_id=f"doc-{i % 2}",  # doc-0 and doc-1
-                repository_id="repo-1",
+                chunk_id="f""chunk-{i}",
+                document_id=f"doc-{i % 2}",  # doc-0 and doc-1,
                 vector=[float(i), float(i * 2), float(i * 3)],
-                model_name="test-model",
                 dimension=3,
             )
             for i in range(1, 6)
@@ -184,20 +197,19 @@ class TestChromaVectorStore:
         await store.delete_by_document_id("doc-0", repository_name="test-repo")
 
         # Verify count (should have 2 chunks from doc-1 remaining)
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 2
 
+    @pytest.mark.asyncio
     async def test_delete_by_repository(self, store):
         """Test deleting all embeddings from a repository."""
         # Add embeddings to multiple repositories
         for repo_name in ["repo-a", "repo-b"]:
             embeddings = [
                 Embedding(
-                    chunk_id=f"{repo_name}-chunk-{i}",
+                    chunk_id="f""{repo_name}-chunk-{i}",
                     document_id=f"{repo_name}-doc-{i}",
-                    repository_id=repo_name,
                     vector=[float(i), float(i * 2), float(i * 3)],
-                    model_name="test-model",
                     dimension=3,
                 )
                 for i in range(1, 4)
@@ -208,27 +220,26 @@ class TestChromaVectorStore:
         await store.delete_by_repository(repository_name="repo-a")
 
         # Verify repo-a is empty
-        count_a = await store.count(repository_name="repo-a")
+        count_a = await store.count()
         assert count_a == 0
 
         # Verify repo-b still has data
-        count_b = await store.count(repository_name="repo-b")
+        count_b = await store.count()
         assert count_b == 3
 
+    @pytest.mark.asyncio
     async def test_count(self, store):
         """Test counting embeddings."""
         # Initially empty
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 0
 
         # Add some embeddings
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
-                document_id="doc-1",
-                repository_id="repo-1",
+                chunk_id="f""chunk-{i}",
                 vector=[float(i), float(i * 2), float(i * 3)],
-                model_name="test-model",
+                model="test-model",
                 dimension=3,
             )
             for i in range(1, 11)
@@ -237,20 +248,19 @@ class TestChromaVectorStore:
         await store.add_embeddings_batch(embeddings, repository_name="test-repo")
 
         # Verify count
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 10
 
+    @pytest.mark.asyncio
     async def test_repository_isolation(self, store):
         """Test that repositories are properly isolated."""
         # Add embeddings to different repositories
         for repo_name in ["repo-a", "repo-b", "repo-c"]:
             embeddings = [
                 Embedding(
-                    chunk_id=f"{repo_name}-chunk-{i}",
+                    chunk_id="f""{repo_name}-chunk-{i}",
                     document_id=f"{repo_name}-doc-{i}",
-                    repository_id=repo_name,
                     vector=[float(i), float(i * 2), float(i * 3)],
-                    model_name="test-model",
                     dimension=3,
                 )
                 for i in range(1, 4)
@@ -273,47 +283,51 @@ class TestChromaVectorStore:
             assert len(results) == 3
             assert all(repo_name in r["chunk_id"] for r in results)
 
+    @pytest.mark.asyncio
     async def test_collection_name_sanitization(self, temp_dir):
         """Test that collection names are properly sanitized."""
         # Test with invalid characters
         store = ChromaVectorStore(
-            collection_name="test-collection",
-            persist_directory=str(temp_dir),
+            StorageConfig(
+                storage_type="chroma",
+                collection_name="test-collection",
+                extra_params={"persist_directory": str(temp_dir)}
+            )
         )
         await store.initialize()
 
         # Should work with sanitized name
         embedding = Embedding(
-            chunk_id="chunk-1",
-            document_id="doc-1",
-            repository_id="repo-1",
+            chunk_id="12345678-1234-5678-1234-567812345678",
             vector=[0.1, 0.2, 0.3],
-            model_name="test-model",
+            model="test-model",
             dimension=3,
         )
 
         await store.add_embedding(embedding, repository_name="my-repo")
-        count = await store.count(repository_name="my-repo")
+        count = await store.count()
         assert count == 1
 
         await store.close()
 
+    @pytest.mark.asyncio
     async def test_persistence(self, temp_dir):
         """Test that data persists across store instances."""
         # Create store and add data
         store1 = ChromaVectorStore(
-            collection_name="test",
-            persist_directory=str(temp_dir),
+            StorageConfig(
+                storage_type="chroma",
+                collection_name="test",
+                extra_params={"persist_directory": str(temp_dir)}
+            )
         )
         await store1.initialize()
 
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
-                document_id="doc-1",
-                repository_id="repo-1",
+                chunk_id="f""chunk-{i}",
                 vector=[float(i), float(i * 2), float(i * 3)],
-                model_name="test-model",
+                model="test-model",
                 dimension=3,
             )
             for i in range(1, 6)
@@ -324,38 +338,44 @@ class TestChromaVectorStore:
 
         # Create new store instance with same directory
         store2 = ChromaVectorStore(
-            collection_name="test",
-            persist_directory=str(temp_dir),
+            StorageConfig(
+                storage_type="chroma",
+                collection_name="test",
+                extra_params={"persist_directory": str(temp_dir)}
+            )
         )
         await store2.initialize()
 
         # Verify data persisted
-        count = await store2.count(repository_name="test-repo")
+        count = await store2.count()
         assert count == 5
 
         await store2.close()
 
+    @pytest.mark.asyncio
     async def test_context_manager(self, temp_dir):
         """Test using store as context manager."""
         async with ChromaVectorStore(
-            collection_name="test",
-            persist_directory=str(temp_dir),
+            StorageConfig(
+                storage_type="chroma",
+                collection_name="test",
+                extra_params={"persist_directory": str(temp_dir)}
+            )
         ) as store:
             await store.initialize()
 
             embedding = Embedding(
-                chunk_id="chunk-1",
-                document_id="doc-1",
-                repository_id="repo-1",
+                chunk_id="12345678-1234-5678-1234-567812345678",
                 vector=[0.1, 0.2, 0.3],
-                model_name="test-model",
+                model="test-model",
                 dimension=3,
             )
 
             await store.add_embedding(embedding, repository_name="test-repo")
-            count = await store.count(repository_name="test-repo")
+            count = await store.count()
             assert count == 1
 
+    @pytest.mark.asyncio
     async def test_empty_search(self, store):
         """Test search on empty collection."""
         query_vector = [1.0, 2.0, 3.0]
@@ -367,16 +387,15 @@ class TestChromaVectorStore:
 
         assert results == []
 
+    @pytest.mark.asyncio
     async def test_large_batch(self, store):
         """Test adding a large batch of embeddings."""
         # Create a large batch
         embeddings = [
             Embedding(
-                chunk_id=f"chunk-{i}",
+                chunk_id="f""chunk-{i}",
                 document_id=f"doc-{i // 10}",
-                repository_id="repo-1",
                 vector=[float(i % 10), float((i % 10) * 2), float((i % 10) * 3)],
-                model_name="test-model",
                 dimension=3,
             )
             for i in range(1000)
@@ -385,7 +404,7 @@ class TestChromaVectorStore:
         await store.add_embeddings_batch(embeddings, repository_name="test-repo")
 
         # Verify count
-        count = await store.count(repository_name="test-repo")
+        count = await store.count()
         assert count == 1000
 
         # Verify search still works

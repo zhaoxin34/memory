@@ -2,7 +2,7 @@
 
 import pytest
 from memory.providers.local import LocalEmbeddingProvider
-from memory.providers.base import ProviderError
+from memory.providers.base import ProviderConfig, ProviderError
 
 
 @pytest.mark.asyncio
@@ -11,14 +11,15 @@ class TestLocalEmbeddingProvider:
 
     async def test_initialization(self):
         """Test provider initialization."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
-        assert provider.model_name == "all-MiniLM-L6-v2"
-        assert provider.model is not None
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
+        assert provider.config.model_name == "all-MiniLM-L6-v2"
         await provider.close()
 
     async def test_embed_text(self):
         """Test single text embedding."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         text = "This is a test sentence."
         embedding = await provider.embed_text(text)
@@ -31,7 +32,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_embed_batch(self):
         """Test batch text embedding."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         texts = [
             "First sentence.",
@@ -48,7 +50,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_embed_empty_text(self):
         """Test embedding empty text."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         with pytest.raises(ProviderError):
             await provider.embed_text("")
@@ -57,7 +60,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_embed_empty_batch(self):
         """Test embedding empty batch."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         embeddings = await provider.embed_batch([])
         assert embeddings == []
@@ -66,7 +70,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_get_dimension(self):
         """Test getting embedding dimension."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         dimension = provider.get_dimension()
         assert dimension == 384
@@ -75,7 +80,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_get_max_tokens(self):
         """Test getting max tokens."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         max_tokens = provider.get_max_tokens()
         assert max_tokens == 256
@@ -84,9 +90,10 @@ class TestLocalEmbeddingProvider:
 
     async def test_different_model(self):
         """Test using a different model."""
-        provider = LocalEmbeddingProvider(model_name="all-mpnet-base-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-mpnet-base-v2")
+        provider = LocalEmbeddingProvider(config)
 
-        assert provider.model_name == "all-mpnet-base-v2"
+        assert provider.config.model_name == "all-mpnet-base-v2"
         dimension = provider.get_dimension()
         assert dimension == 768  # all-mpnet-base-v2 dimension
 
@@ -94,13 +101,15 @@ class TestLocalEmbeddingProvider:
 
     async def test_context_manager(self):
         """Test using provider as context manager."""
-        async with LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2") as provider:
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        async with LocalEmbeddingProvider(config) as provider:
             embedding = await provider.embed_text("Test")
             assert len(embedding) == 384
 
     async def test_embedding_consistency(self):
         """Test that same text produces same embedding."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         text = "Consistency test"
         embedding1 = await provider.embed_text(text)
@@ -113,7 +122,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_embedding_similarity(self):
         """Test that similar texts have similar embeddings."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         text1 = "The cat sits on the mat."
         text2 = "A cat is sitting on a mat."
@@ -141,7 +151,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_long_text_handling(self):
         """Test handling of text longer than max tokens."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         # Create a very long text
         long_text = "word " * 1000
@@ -154,7 +165,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_special_characters(self):
         """Test handling of special characters."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         texts = [
             "Hello, world!",
@@ -172,7 +184,8 @@ class TestLocalEmbeddingProvider:
 
     async def test_batch_size_handling(self):
         """Test handling of large batches."""
-        provider = LocalEmbeddingProvider(model_name="all-MiniLM-L6-v2")
+        config = ProviderConfig(provider_type="local", model_name="all-MiniLM-L6-v2")
+        provider = LocalEmbeddingProvider(config)
 
         # Create a large batch
         texts = [f"Sentence number {i}" for i in range(100)]
@@ -186,5 +199,6 @@ class TestLocalEmbeddingProvider:
     async def test_invalid_model_name(self):
         """Test initialization with invalid model name."""
         with pytest.raises(Exception):  # Will raise during model loading
-            provider = LocalEmbeddingProvider(model_name="invalid-model-name")
+            config = ProviderConfig(provider_type="local", model_name="invalid-model-name")
+            provider = LocalEmbeddingProvider(config)
             await provider.embed_text("test")

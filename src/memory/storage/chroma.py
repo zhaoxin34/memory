@@ -207,7 +207,7 @@ class ChromaVectorStore(VectorStore):
                 ids=[str(chunk.id)],
                 embeddings=[embedding.vector],
                 metadatas=[metadata],
-                documents=[chunk.text],
+                documents=[chunk.content],
             )
 
             logger.debug(

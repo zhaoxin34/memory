@@ -92,7 +92,12 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         try:
             from openai import AsyncOpenAI
 
-            self.client = AsyncOpenAI(api_key=config.api_key)
+            # Build client kwargs from config
+            client_kwargs = {"api_key": config.api_key}
+            if config.extra_params:
+                client_kwargs.update(config.extra_params)
+
+            self.client = AsyncOpenAI(**client_kwargs)
 
             logger.info(
                 "openai_embedding_provider_initialized",
