@@ -93,6 +93,21 @@ def create_metadata_store(config: StorageConfig) -> MetadataStore:
 
         return InMemoryMetadataStore(config)
 
+    elif storage_type == "sqlite":
+        try:
+            from memory.storage.sqlite import SQLiteMetadataStore
+
+            return SQLiteMetadataStore(config)
+        except ImportError as e:
+            raise StorageError(
+                message=(
+                    "SQLite metadata store requires aiosqlite package. "
+                    "Install with: uv add aiosqlite"
+                ),
+                storage_type="sqlite",
+                original_error=e,
+            )
+
     elif storage_type == "chroma":
         # For now, use in-memory metadata store with Chroma vector store
         # In the future, we could implement a persistent metadata store
@@ -103,7 +118,7 @@ def create_metadata_store(config: StorageConfig) -> MetadataStore:
     else:
         raise ValueError(
             f"Unknown metadata store type: '{storage_type}'. "
-            f"Supported types: memory, chroma"
+            f"Supported types: memory, sqlite, chroma"
         )
 
 

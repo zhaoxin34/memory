@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "mcp_server_mysql": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@benborla29/mcp-server-mysql@v2.0.0"
+      ],
+      "env": {
+        "MYSQL_HOST": "127.0.0.1",
+        "MYSQL_PORT": "3306",
+        "MYSQL_USER": "root",
+        "MYSQL_PASS": "root",
+        "MYSQL_DB": "memory",
+        "MYSQL_POOL_SIZE": "2",
+        "MYSQL_QUERY_TIMEOUT": "2000",
+        "MYSQL_CACHE_TTL": "60000",
+        "MYSQL_RATE_LIMIT": "100",
+        "MYSQL_SSL": "false",
+        "ALLOW_INSERT_OPERATION": "true",
+        "ALLOW_UPDATE_OPERATION": "true",
+        "ALLOW_DELETE_OPERATION": "true",
+        "MYSQL_ENABLE_LOGGING": "true"
+      }
+    }
+  }
+}

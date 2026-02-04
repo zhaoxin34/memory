@@ -1,4 +1,4 @@
-# Memory Configuration File
+# Memory Configuration File - Example
 # This is an example configuration file for the Memory knowledge base system.
 # Copy this file to config.toml and customize for your needs.
 
@@ -6,7 +6,9 @@
 app_name = "memory"
 log_level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 json_logs = false
-data_dir = "~/.memory"
+# Note: data_dir defaults to ~/.memory (automatically expanded to /Users/username/.memory)
+# You can override with MEMORY_DATA_DIR environment variable
+# data_dir = "~/.memory"
 
 # Embedding provider configuration
 [embedding]
@@ -27,12 +29,19 @@ temperature = 0.7
 [vector_store]
 store_type = "chroma"  # Options: chroma, qdrant, faiss, memory
 collection_name = "memory"
+
+# IMPORTANT: Paths starting with ~ are automatically expanded by the code
+# Example: "~/.memory/chroma" becomes "/Users/username/.memory/chroma"
+[vector_store.extra_params]
 persist_directory = "~/.memory/chroma"
 
 # Metadata store configuration
 [metadata_store]
 store_type = "sqlite"  # Options: sqlite, postgres, memory
-connection_string = "sqlite:///~/.memory/memory.db"
+
+# IMPORTANT: Paths starting with ~ are automatically expanded by the code
+# Example: "~/.memory/metadata.db" becomes "/Users/username/.memory/metadata.db"
+connection_string = "~/.memory/metadata.db"
 
 # Document chunking configuration
 [chunking]
@@ -47,6 +56,8 @@ min_chunk_size = 100
 log_level = "DEBUG"
 [profiles.local.embedding]
 provider = "local"
+[profiles.local.vector_store.extra_params]
+persist_directory = "~/.memory/chroma"
 
 [profiles.server]
 log_level = "INFO"

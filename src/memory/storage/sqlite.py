@@ -25,7 +25,22 @@ class SQLiteMetadataStore(MetadataStore):
     def __init__(self, config: StorageConfig) -> None:
         """Initialize SQLite metadata store."""
         super().__init__(config)
-        self.db_path = config.connection_string.replace("sqlite:///", "")
+        # Handle connection_string - can be None or a path
+        import os
+
+        conn_str = config.connection_string
+        if conn_str is None:
+            # Default to ~/.memory/metadata.db
+            db_dir = os.path.expanduser("~/.memory")
+            os.makedirs(db_dir, exist_ok=True)
+            self.db_path = os.path.join(db_dir, "metadata.db")
+        elif conn_str.startswith("sqlite:///"):
+            # Extract the path part and expand user
+            self.db_path = os.path.expanduser(conn_str.replace("sqlite:///", ""))
+        else:
+            # Expand user path if needed
+            self.db_path = os.path.expanduser(conn_str)
+
         self.connection: Optional[aiosqlite.Connection] = None
 
     async def initialize(self) -> None:

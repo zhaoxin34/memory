@@ -88,8 +88,11 @@ class ChromaVectorStore(VectorStore):
         """
         super().__init__(config)
 
-        # Get persist directory from config
-        self.persist_directory = config.extra_params.get("persist_directory", "./chroma_db")
+        import os
+
+        # Get persist directory from config and expand user path
+        persist_dir = config.extra_params.get("persist_directory", "./chroma_db")
+        self.persist_directory = os.path.expanduser(persist_dir)
         self.base_collection_name = config.collection_name
 
         # Client and collections cache
@@ -273,7 +276,7 @@ class ChromaVectorStore(VectorStore):
                     }
                     for chunk in repo_chunks
                 ]
-                documents = [chunk.text for chunk in repo_chunks]
+                documents = [chunk.content for chunk in repo_chunks]
 
                 # Add batch to collection
                 collection.add(

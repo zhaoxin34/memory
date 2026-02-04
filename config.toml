@@ -6,7 +6,8 @@
 app_name = "memory"
 log_level = "INFO"     # DEBUG, INFO, WARNING, ERROR, CRITICAL
 json_logs = false
-data_dir = "~/.memory"
+# Note: data_dir will use default Path.home() / ".memory"
+# You can override with environment variable MEMORY_DATA_DIR
 default_repository = "default"  # Default repository for documents (can be overridden with MEMORY_DEFAULT_REPOSITORY)
 
 # Embedding provider configuration
@@ -47,6 +48,7 @@ store_type = "chroma"           # Options: chroma, memory
 collection_name = "memory"
 
 # Chroma-specific settings (install with `uv sync --extra chroma`)
+# Note: Path will be expanded (e.g., ~/.memory/chroma -> /Users/username/.memory/chroma)
 [vector_store.extra_params]
 persist_directory = "~/.memory/chroma"
 
@@ -56,9 +58,10 @@ persist_directory = "~/.memory/chroma"
 # collection_name = "memory"
 
 # Metadata store configuration
-# Currently only in-memory is supported
 [metadata_store]
-store_type = "memory"           # Options: memory
+store_type = "sqlite"           # Options: sqlite
+# Note: Path will be expanded (e.g., ~/.memory/metadata.db -> /Users/username/.memory/metadata.db)
+connection_string = "~/.memory/metadata.db"
 collection_name = "memory"
 
 # Document chunking configuration
@@ -81,6 +84,7 @@ model_name = "all-MiniLM-L6-v2"
 [profiles.local.vector_store]
 store_type = "chroma"
 [profiles.local.vector_store.extra_params]
+# Note: Path will be expanded (e.g., ~/.memory/chroma -> /Users/username/.memory/chroma)
 persist_directory = "~/.memory/chroma"
 
 # OpenAI profile: Uses OpenAI embeddings with Chroma storage
@@ -93,6 +97,7 @@ api_key = "${OPENAI_API_KEY}"
 [profiles.openai.vector_store]
 store_type = "chroma"
 [profiles.openai.vector_store.extra_params]
+# Note: Path will be expanded (e.g., ~/.memory/chroma -> /Users/username/.memory/chroma)
 persist_directory = "~/.memory/chroma"
 
 # Testing profile: Uses in-memory storage (no persistence)

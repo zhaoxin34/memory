@@ -109,7 +109,7 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
 
     if not repo:
         console.print(f"[red]Repository '{repo_name}' not found[/red]")
-        raise typer.Exit(1)
+        return
 
     # Create embedding provider
     try:
@@ -127,90 +127,94 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
 
     except Exception as e:
         console.print(f"[red]Error creating embedding provider: {str(e)}[/red]")
-        raise typer.Exit(1)
+        return
 
     # Initialize ingestion pipeline
     from memory.pipelines.ingestion import IngestionPipeline
 
-    pipeline = IngestionPipeline(
-        config=config,
-        embedding_provider=embedding_provider,
-        vector_store=vector_store,
-        metadata_store=metadata_store,
-        repository_id=repo.id,
-    )
+    try:
+        pipeline = IngestionPipeline(
+            config=config,
+            embedding_provider=embedding_provider,
+            vector_store=vector_store,
+            metadata_store=metadata_store,
+            repository_id=repo.id,
+        )
 
-    # Collect files to ingest
-    files_to_ingest = []
+        # Collect files to ingest
+        files_to_ingest = []
 
-    if path.is_file():
-        files_to_ingest.append(path)
-    elif path.is_dir():
-        if recursive:
-            # Recursively find all files
-            for file_path in path.rglob("*"):
-                if file_path.is_file():
-                    files_to_ingest.append(file_path)
+        if path.is_file():
+            files_to_ingest.append(path)
+        elif path.is_dir():
+            if recursive:
+                # Recursively find all files
+                for file_path in path.rglob("*"):
+                    if file_path.is_file():
+                        files_to_ingest.append(file_path)
+            else:
+                # Only files in the directory
+                for file_path in path.iterdir():
+                    if file_path.is_file():
+                        files_to_ingest.append(file_path)
         else:
-            # Only files in the directory
-            for file_path in path.iterdir():
-                if file_path.is_file():
-                    files_to_ingest.append(file_path)
-    else:
-        console.print(f"[red]Path not found: {path}[/red]")
-        raise typer.Exit(1)
+            console.print(f"[red]Path not found: {path}[/red]")
+            return
 
-    if not files_to_ingest:
-        console.print(f"[yellow]No files found to ingest[/yellow]")
-        return
+        if not files_to_ingest:
+            console.print(f"[yellow]No files found to ingest[/yellow]")
+            return
 
-    console.print(f"[cyan]Ingesting {len(files_to_ingest)} file(s) into repository '{repo_name}'...[/cyan]")
+        console.print(f"[cyan]Ingesting {len(files_to_ingest)} file(s) into repository '{repo_name}'...[/cyan]")
 
-    # Ingest each file
-    success_count = 0
-    error_count = 0
+        # Ingest each file
+        success_count = 0
+        error_count = 0
 
-    for file_path in files_to_ingest:
-        try:
-            console.print(f"  Processing: {file_path}")
+        for file_path in files_to_ingest:
+            try:
+                console.print(f"  Processing: {file_path}")
 
-            # Read file content
-            content = file_path.read_text(encoding="utf-8")
+                # Read file content
+                content = file_path.read_text(encoding="utf-8")
 
-            # Create document object
-            from memory.core.models import Document, DocumentType
+                # Create document object
+                from memory.core.models import Document, DocumentType
 
-            document = Document(
-                content=content,
-                source_path=str(file_path),
-                document_type=DocumentType.TEXT,
-                repository_id=repo.id,
-            )
+                document = Document(
+                    repository_id=repo.id,
+                    source_path=str(file_path),
+                    doc_type=DocumentType.TEXT,
+                    title=file_path.stem,
+                    content=content,
+                    metadata={"file_size": file_path.stat().st_size},
+                )
 
-            # Ingest document
-            num_chunks = await pipeline.ingest_document(document)
+                # Ingest document
+                num_chunks = await pipeline.ingest_document(document)
 
-            console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({num_chunks} chunks, ID: {document.id})")
-            success_count += 1
+                console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({num_chunks} chunks, ID: {document.id})")
+                success_count += 1
 
-        except UnicodeDecodeError:
-            console.print(f"  [yellow]⚠[/yellow] Skipped (not a text file): {file_path.name}")
-            error_count += 1
-        except Exception as e:
-            console.print(f"  [red]✗[/red] Error: {file_path.name} - {str(e)}")
-            error_count += 1
-            logger.error("ingestion_error", file=str(file_path), error=str(e))
+            except UnicodeDecodeError:
+                console.print(f"  [yellow]⚠[/yellow] Skipped (not a text file): {file_path.name}")
+                error_count += 1
+            except Exception as e:
+                console.print(f"  [red]✗[/red] Error: {file_path.name} - {str(e)}")
+                error_count += 1
+                logger.error("ingestion_error", file=str(file_path), error=str(e))
 
-    # Summary
-    console.print()
-    console.print(f"[green]Successfully ingested: {success_count} file(s)[/green]")
-    if error_count > 0:
-        console.print(f"[yellow]Errors: {error_count} file(s)[/yellow]")
+        # Summary
+        console.print()
+        console.print(f"[green]Successfully ingested: {success_count} file(s)[/green]")
+        if error_count > 0:
+            console.print(f"[yellow]Errors: {error_count} file(s)[/yellow]")
 
-    # Cleanup
-    await embedding_provider.close()
-    await metadata_store.close()
-    await vector_store.close()
+    finally:
+        # Cleanup - always execute
+        await embedding_provider.close()
+        await metadata_store.close()
+        await vector_store.close()
 
 
 @app.command()
@@ -264,8 +268,14 @@ async def _search_async(query: str, top_k: int, config_file: Optional[Path], rep
     # Initialize query pipeline
     from memory.pipelines.query import QueryPipeline
 
+    # Create a simple LLM provider for search (not used in search mode)
+    # Note: LLM provider not used in search, but required by QueryPipeline
+    llm_provider = None
+
     pipeline = QueryPipeline(
+        config=config,
         embedding_provider=embedding_provider,
+        llm_provider=llm_provider,
         vector_store=vector_store,
         metadata_store=metadata_store,
     )
@@ -288,7 +298,7 @@ async def _search_async(query: str, top_k: int, config_file: Optional[Path], rep
             for i, result in enumerate(results, 1):
                 console.print(f"[bold cyan]{i}. Score: {result.score:.4f}[/bold cyan]")
                 console.print(f"   Document ID: {result.document_id}")
-                console.print(f"   Chunk: {result.chunk.text[:200]}...")
+                console.print(f"   Chunk: {result.chunk.content[:200]}...")
                 console.print()
 
     except Exception as e:
@@ -356,11 +366,15 @@ async def _ask_async(question: str, top_k: int, config_file: Optional[Path], rep
     # Initialize query pipeline
     from memory.pipelines.query import QueryPipeline
 
+    # Note: LLM provider not used in search mode
+    llm_provider = None
+
     pipeline = QueryPipeline(
+        config=config,
         embedding_provider=embedding_provider,
+        llm_provider=llm_provider,
         vector_store=vector_store,
         metadata_store=metadata_store,
-        llm_provider=None,  # LLM not yet implemented
     )
 
     # Retrieve relevant chunks
@@ -380,7 +394,7 @@ async def _ask_async(question: str, top_k: int, config_file: Optional[Path], rep
 
             for i, result in enumerate(results, 1):
                 console.print(f"[bold cyan]{i}. Relevance: {result.score:.4f}[/bold cyan]")
-                console.print(f"   {result.chunk.text}")
+                console.print(f"   {result.chunk.content}")
                 console.print()
 
             console.print("[yellow]To get LLM-generated answers, implement an LLM provider.[/yellow]")
@@ -427,7 +441,7 @@ async def _repo_create_async(name: str, description: Optional[str], config_file:
         existing = await repo_manager.get_repository_by_name(name)
         if existing:
             console.print(f"[red]Repository '{name}' already exists[/red]")
-            raise typer.Exit(1)
+            return
 
         # Create new repository
         repository = await repo_manager.create_repository(
@@ -442,11 +456,11 @@ async def _repo_create_async(name: str, description: Optional[str], config_file:
 
     except Exception as e:
         console.print(f"[red]Error creating repository: {str(e)}[/red]")
-        raise typer.Exit(1)
-
-    # Cleanup
-    await metadata_store.close()
-    await vector_store.close()
+        return
+    finally:
+        # Cleanup - always execute
+        await metadata_store.close()
+        await vector_store.close()
 
 
 @repo_app.command("list")
@@ -497,11 +511,12 @@ async def _repo_list_async(config_file: Optional[Path]):
 
     except Exception as e:
         console.print(f"[red]Error listing repositories: {str(e)}[/red]")
-        raise typer.Exit(1)
-
-    # Cleanup
-    await metadata_store.close()
-    await vector_store.close()
+        # Don't raise again, just exit cleanly
+        return
+    finally:
+        # Cleanup - always execute
+        await metadata_store.close()
+        await vector_store.close()
 
 
 @repo_app.command("info")
@@ -530,7 +545,7 @@ async def _repo_info_async(name: str, config_file: Optional[Path]):
 
         if not repository:
             console.print(f"[red]Repository '{name}' not found[/red]")
-            raise typer.Exit(1)
+            return
 
         # Get statistics
         docs = await metadata_store.list_documents(repository_id=repository.id)
@@ -554,11 +569,11 @@ async def _repo_info_async(name: str, config_file: Optional[Path]):
 
     except Exception as e:
         console.print(f"[red]Error getting repository info: {str(e)}[/red]")
-        raise typer.Exit(1)
-
-    # Cleanup
-    await metadata_store.close()
-    await vector_store.close()
+        return
+    finally:
+        # Cleanup - always execute
+        await metadata_store.close()
+        await vector_store.close()
 
 
 @repo_app.command("delete")
