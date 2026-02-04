@@ -7,9 +7,11 @@ Supports:
 - Multiple profiles (local, server, cloud)
 """
 
+import os
+import re
 import tomllib
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 
@@ -17,6 +19,49 @@ from memory.config.schema import AppConfig
 from memory.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _substitute_env_vars(obj: Any) -> Any:
+    """Recursively substitute environment variables in a data structure.
+
+    Supports formats:
+    - ${VAR_NAME}
+    - ${VAR_NAME:-default}
+
+    Args:
+        obj: Input data (dict, list, str, etc.)
+
+    Returns:
+        Data structure with environment variables substituted
+    """
+    if isinstance(obj, dict):
+        return {k: _substitute_env_vars(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_substitute_env_vars(item) for item in obj]
+    elif isinstance(obj, str):
+        # Pattern matches ${VAR_NAME} or ${VAR_NAME:-default}
+        def replace_var(match):
+            var_expr = match.group(1)
+            # Split by :- to separate var name and default value
+            if ":-" in var_expr:
+                var_name, default_value = var_expr.split(":-", 1)
+                return os.getenv(var_name.strip(), default_value)
+            else:
+                var_name = var_expr.strip()
+                value = os.getenv(var_name)
+                if value is None:
+                    # Return the original if env var not found
+                    logger.warning(
+                        "env_var_not_found",
+                        var_name=var_name,
+                        suggestion="Check that the environment variable is set",
+                    )
+                    return match.group(0)
+                return value
+
+        return re.sub(r"\$\{([^}]+)\}", replace_var, obj)
+    else:
+        return obj
 
 
 def load_config(
@@ -57,6 +102,10 @@ def load_config(
             # Merge profile data into config (profile overrides base)
             config_data = {**config_data, **profile_data}
             logger.info("applied_profile", profile=profile)
+
+        # Substitute environment variables in config data
+        config_data = _substitute_env_vars(config_data)
+        logger.debug("substituted_env_vars_in_config")
 
         # Remove profiles field before passing to AppConfig
         config_data.pop("profiles", None)

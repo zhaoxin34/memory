@@ -5,11 +5,12 @@
       "Bash(unset:*)",
       "Bash(export:*)",
       "Bash(python -m py_compile tests/unit/test_chroma_store.py)",
-      "Bash(openspec list:*)",
-      "Bash(openspec status:*)",
+      "Bash(openspec:*)",
       "Bash(memory:*)",
       "Bash(sqlite3 ~/.memory/chroma/chroma.sqlite3 \"SELECT * FROM repositories;\")",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(MEMORY_LOG_LEVEL=DEBUG uv run memory ingest:*)",
+      "Bash(python3 -m py_compile:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

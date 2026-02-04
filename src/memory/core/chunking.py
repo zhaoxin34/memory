@@ -42,8 +42,10 @@ def chunk_text(
 
     text_length = len(text)
     start = 0
+    iterations = 0
+    max_iterations = text_length * 2 + 10  # Safety limit to prevent infinite loops
 
-    while start < text_length:
+    while start < text_length and iterations < max_iterations:
         end = min(start + chunk_size, text_length)
 
         # Extract chunk
@@ -53,12 +55,38 @@ def chunk_text(
         if len(chunk) >= min_chunk_size:
             yield (chunk, start, end)
 
-        # Move to next chunk with overlap
-        start = end - chunk_overlap
+        # If we've reached the end of the text, stop
+        if end == text_length:
+            break
 
-        # Prevent infinite loop if overlap >= chunk_size
-        if start <= end - chunk_size:
-            start = end
+        # Move to next chunk with overlap
+        new_start = end - chunk_overlap
+
+        # Ensure we're making progress
+        if new_start <= start:
+            logger.warning(
+                "chunking_no_progress",
+                text_length=text_length,
+                chunk_size=chunk_size,
+                chunk_overlap=chunk_overlap,
+                start=start,
+                new_start=new_start,
+            )
+            break
+
+        start = new_start
+        iterations += 1
+
+    # If we hit the max iterations, it indicates a potential infinite loop
+    if iterations >= max_iterations:
+        logger.warning(
+            "chunking_iteration_limit_reached",
+            text_length=text_length,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            min_chunk_size=min_chunk_size,
+            iterations=iterations,
+        )
 
 
 def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:

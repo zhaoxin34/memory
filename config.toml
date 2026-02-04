@@ -4,19 +4,19 @@
 
 # Application settings
 app_name = "memory"
-log_level = "INFO"     # DEBUG, INFO, WARNING, ERROR, CRITICAL
+log_level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
 json_logs = false
-# Note: data_dir will use default Path.home() / ".memory"
+# Note: data_dir will use default Path.home() / ""
 # You can override with environment variable MEMORY_DATA_DIR
-default_repository = "default"  # Default repository for documents (can be overridden with MEMORY_DEFAULT_REPOSITORY)
+default_repository = "default" # Default repository for documents (can be overridden with MEMORY_DEFAULT_REPOSITORY)
 
 # Embedding provider configuration
 # Choose between local (sentence-transformers) or OpenAI embeddings
-[embedding]
-provider = "local"              # Options: local, openai
-model_name = "all-MiniLM-L6-v2" # For local: all-MiniLM-L6-v2, all-mpnet-base-v2, etc.
-                                # For openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
-batch_size = 32
+# [embedding]
+# provider = "local"              # Options: local, openai
+# model_name = "all-MiniLM-L6-v2" # For local: all-MiniLM-L6-v2, all-mpnet-base-v2, etc.
+#                                 # For openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
+# batch_size = 32
 
 # For local provider: Install with `uv sync --extra local`
 # This will install sentence-transformers and torch
@@ -26,25 +26,25 @@ batch_size = 32
 # api_key = "${OPENAI_API_KEY}"  # Use environment variable or set directly
 
 # Example OpenAI configuration:
-# [embedding]
-# provider = "openai"
-# model_name = "text-embedding-3-small"
-# api_key = "${OPENAI_API_KEY}"
-# batch_size = 100
+[embedding]
+provider = "openai"
+model_name = "text-embedding-v4"
+api_key = "${BAILIAN_API_KEY}"
+batch_size = 100
 
 # LLM provider configuration (for ask command)
 # Note: LLM providers are not yet implemented
 [llm]
-provider = "openai"           # Options: openai, anthropic (not yet implemented)
-model_name = "gpt-4"
-api_key = "${OPENAI_API_KEY}" # Use environment variable
+provider = "openai"            # Options: openai, anthropic (not yet implemented)
+model_name = "qwen3-max"
+api_key = "${BAILIAN_API_KEY}" # Use environment variable
 max_tokens = 2000
 temperature = 0.7
 
 # Vector store configuration
 # Chroma is recommended for local persistent storage
 [vector_store]
-store_type = "chroma"           # Options: chroma, memory
+store_type = "chroma"      # Options: chroma, memory
 collection_name = "memory"
 
 # Chroma-specific settings (install with `uv sync --extra chroma`)
@@ -59,7 +59,7 @@ persist_directory = "~/.memory/chroma"
 
 # Metadata store configuration
 [metadata_store]
-store_type = "sqlite"           # Options: sqlite
+store_type = "sqlite" # Options: sqlite
 # Note: Path will be expanded (e.g., ~/.memory/metadata.db -> /Users/username/.memory/metadata.db)
 connection_string = "~/.memory/metadata.db"
 collection_name = "memory"

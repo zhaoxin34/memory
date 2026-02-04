@@ -27,6 +27,7 @@ MODEL_METADATA = {
     "text-embedding-ada-002": {"dimension": 1536, "max_tokens": 8191},
     "text-embedding-3-small": {"dimension": 1536, "max_tokens": 8191},
     "text-embedding-3-large": {"dimension": 3072, "max_tokens": 8191},
+    "text-embedding-v4": {"dimension": 1536, "max_tokens": 8192},
 }
 
 # Default model if none specified

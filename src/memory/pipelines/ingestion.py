@@ -83,23 +83,44 @@ class IngestionPipeline:
             # Store chunks
             logger.info("storing_chunks", document_id=str(document.id), chunk_count=len(chunks))
             for i, chunk in enumerate(chunks):
-                logger.debug("storing_chunk", document_id=str(document.id), chunk_index=i, chunk_id=str(chunk.id))
+                logger.debug(
+                    "storing_chunk",
+                    document_id=str(document.id),
+                    chunk_index=i,
+                    chunk_id=str(chunk.id),
+                )
                 await self.metadata_store.add_chunk(chunk)
             logger.info("chunks_stored", document_id=str(document.id), chunk_count=len(chunks))
 
             # Generate embeddings in batches
             batch_size = self.config.embedding.batch_size
-            logger.info("generating_embeddings", document_id=str(document.id), batch_size=batch_size, total_chunks=len(chunks))
+            logger.info(
+                "generating_embeddings",
+                document_id=str(document.id),
+                batch_size=batch_size,
+                total_chunks=len(chunks),
+            )
             for i in range(0, len(chunks), batch_size):
                 batch = chunks[i : i + batch_size]
                 batch_num = i // batch_size + 1
                 total_batches = (len(chunks) + batch_size - 1) // batch_size
                 texts = [chunk.content for chunk in batch]
 
-                logger.info("processing_embedding_batch", document_id=str(document.id), batch_num=batch_num, total_batches=total_batches, batch_size=len(batch))
+                logger.info(
+                    "processing_embedding_batch",
+                    document_id=str(document.id),
+                    batch_num=batch_num,
+                    total_batches=total_batches,
+                    batch_size=len(batch),
+                )
                 # Generate embeddings
                 vectors = await self.embedding_provider.embed_batch(texts)
-                logger.info("embeddings_generated", document_id=str(document.id), batch_num=batch_num, vector_count=len(vectors))
+                logger.info(
+                    "embeddings_generated",
+                    document_id=str(document.id),
+                    batch_num=batch_num,
+                    vector_count=len(vectors),
+                )
 
                 # Create embedding objects
                 embeddings = [
@@ -113,7 +134,12 @@ class IngestionPipeline:
                 ]
 
                 # Store embeddings
-                logger.info("storing_embeddings", document_id=str(document.id), batch_num=batch_num, embedding_count=len(embeddings))
+                logger.info(
+                    "storing_embeddings",
+                    document_id=str(document.id),
+                    batch_num=batch_num,
+                    embedding_count=len(embeddings),
+                )
                 await self.vector_store.add_embeddings_batch(embeddings, batch)
                 logger.info("embeddings_stored", document_id=str(document.id), batch_num=batch_num)
 

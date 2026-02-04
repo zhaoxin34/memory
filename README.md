@@ -81,6 +81,32 @@ memory repo delete my-project
 
 **注意**: 如果不指定 `--repository` 选项，命令将使用配置文件中的 `default_repository`（默认为 "default"）。
 
+### 文档管理
+
+```bash
+# 查询文档（支持分页、搜索、过滤）
+memory doc query --repository my-project --page 1 --page-size 20
+memory doc query --search "README" --repository my-project
+memory doc query --sort created_at --desc --repository my-project
+memory doc query --json --repository my-project
+
+# 查看文档详情
+memory doc info <document-id> --repository my-project
+memory doc info <document-id> --full --repository my-project
+memory doc info <document-id> --json --repository my-project
+
+# 删除文档（级联删除分块和嵌入）
+memory doc delete <document-id> --repository my-project
+memory doc delete <document-id> --force --repository my-project
+memory doc delete <doc1-id> <doc2-id> --force --repository my-project
+memory doc delete <document-id> --dry-run --repository my-project
+```
+
+**文档管理功能说明**:
+- **query**: 支持分页、模糊搜索（按名称）、仓库过滤、排序（创建时间/更新时间/名称）
+- **info**: 显示文档详情，包括内容预览、分块统计等
+- **delete**: 支持单/多文档删除、级联删除（文档+分块+嵌入）、干运行模式
+
 ## 架构
 
 ```mermaid
@@ -221,9 +247,20 @@ batch_size = 100
 **支持的模型**:
 | 模型名称 | 维度 | 价格 | 性能 | 适用场景 |
 |---------|------|------|------|---------|
+| text-embedding-v4 | 1536 (可选: 64-2048) | 详见 OpenAI 定价 | 高 | 最新版本，可变维度 |
 | text-embedding-3-small | 1536 | $0.02/1M tokens | 高 | 性价比首选 |
 | text-embedding-3-large | 3072 | $0.13/1M tokens | 最高 | 高精度需求 |
 | text-embedding-ada-002 | 1536 | $0.10/1M tokens | 高 | 旧版兼容 |
+
+**注意**：`text-embedding-v4` 支持多种维度（64, 128, 256, 512, 768, 1024, 1536, 2048），可通过 `extra_params` 配置：
+```toml
+[embedding]
+provider = "openai"
+model_name = "text-embedding-v4"
+
+[embedding.extra_params]
+dimensions = 1536  # 或 1024, 2048 等
+```
 
 ### 向量存储配置
 

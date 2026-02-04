@@ -5,6 +5,7 @@ Commands:
 - search: Perform semantic search
 - ask: Ask questions with LLM-based answers
 - repo: Manage repositories
+- doc: Manage documents (query, info, delete)
 - info: Show system information
 """
 
@@ -629,6 +630,448 @@ async def _repo_delete_async(name: str, force: bool, config_file: Optional[Path]
     # Cleanup
     await metadata_store.close()
     await vector_store.close()
+
+
+# Document management subcommand group
+doc_app = typer.Typer(help="Manage documents")
+app.add_typer(doc_app, name="doc")
+
+
+@doc_app.command("query")
+def doc_query(
+    page: int = typer.Option(1, "--page", "-p", help="Page number (1-based)"),
+    page_size: int = typer.Option(20, "--page-size", "-s", help="Number of items per page"),
+    search: Optional[str] = typer.Option(None, "--search", help="Search documents by name"),
+    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name"),
+    sort: str = typer.Option("created_at", "--sort", help="Sort by: created_at, updated_at, name"),
+    desc: bool = typer.Option(False, "--desc", help="Sort in descending order"),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Query and list documents with pagination and filtering."""
+    asyncio.run(_doc_query_async(page, page_size, search, repository, sort, desc, json_output, config_file))
+
+
+async def _doc_query_async(
+    page: int,
+    page_size: int,
+    search: Optional[str],
+    repository: Optional[str],
+    sort: str,
+    desc: bool,
+    json_output: bool,
+    config_file: Optional[Path],
+):
+    """Async implementation of doc query command."""
+    # Validate pagination parameters
+    if page < 1:
+        console.print("[red]Error: Page number must be >= 1[/red]")
+        raise typer.Exit(1)
+
+    if page_size < 1:
+        console.print("[red]Error: Page size must be > 0[/red]")
+        raise typer.Exit(1)
+
+    # Validate sort option
+    valid_sort_options = ["created_at", "updated_at", "name"]
+    if sort not in valid_sort_options:
+        console.print(f"[red]Error: Invalid sort option. Must be one of: {', '.join(valid_sort_options)}[/red]")
+        raise typer.Exit(1)
+
+    # Load configuration
+    config = _load_config(config_file)
+
+    # Determine repository
+    repo_name = repository or config.default_repository
+
+    # Ensure default repository exists and get stores
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+
+    try:
+        # Get repository
+        from memory.core.repository import RepositoryManager
+        repo_manager = RepositoryManager(metadata_store, vector_store)
+        repo = await repo_manager.get_repository_by_name(repo_name)
+
+        if not repo:
+            console.print(f"[red]Repository '{repo_name}' not found[/red]")
+            raise typer.Exit(1)
+
+        # List documents with pagination
+        # Get all documents with a large limit (pagination in memory)
+        all_docs = await metadata_store.list_documents(limit=10000, repository_id=repo.id)
+
+        # Apply search filter if provided
+        if search:
+            search_lower = search.lower()
+            all_docs = [doc for doc in all_docs if search_lower in (doc.title or "").lower()]
+
+        # Sort documents
+        if sort == "created_at":
+            all_docs.sort(key=lambda d: d.created_at, reverse=desc)
+        elif sort == "updated_at":
+            all_docs.sort(key=lambda d: d.updated_at, reverse=desc)
+        elif sort == "name":
+            all_docs.sort(key=lambda d: (d.title or "").lower(), reverse=desc)
+
+        # Calculate pagination
+        total_docs = len(all_docs)
+        total_pages = (total_docs + page_size - 1) // page_size
+
+        # Get documents for current page
+        start_idx = (page - 1) * page_size
+        end_idx = min(start_idx + page_size, total_docs)
+        page_docs = all_docs[start_idx:end_idx]
+
+        # Output results
+        if json_output:
+            # JSON output
+            import json
+
+            result = {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_documents": total_docs,
+                "repository": repo_name,
+                "documents": [
+                    {
+                        "id": str(doc.id),
+                        "name": doc.title or doc.source_path,
+                        "source_path": doc.source_path,
+                        "chunk_count": 0,  # TODO: Get actual chunk count
+                        "created_at": doc.created_at.isoformat() if doc.created_at else None,
+                        "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+                    }
+                    for doc in page_docs
+                ],
+            }
+
+            console.print(json.dumps(result, indent=2))
+        else:
+            # Table output
+            if not page_docs:
+                console.print(f"[yellow]No documents found{(' matching search criteria' if search else '')} in repository '{repo_name}'[/yellow]")
+            else:
+                table = Table(title=f"Documents - Repository: {repo_name}")
+                table.add_column("ID", style="dim", no_wrap=True)
+                table.add_column("Name", style="cyan")
+                table.add_column("Source Path", style="green")
+                table.add_column("Chunks", style="yellow")
+                table.add_column("Created", style="blue")
+
+                for doc in page_docs:
+                    table.add_row(
+                        str(doc.id),
+                        doc.title or doc.source_path,
+                        doc.source_path,
+                        "0",  # TODO: Get actual chunk count
+                        doc.created_at.strftime("%Y-%m-%d") if doc.created_at else "-",
+                    )
+
+                console.print(table)
+
+                # Show pagination info
+                if total_pages > 1:
+                    console.print(f"\n[dim]Page {page} of {total_pages} (Total: {total_docs} documents)[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error querying documents: {str(e)}[/red]")
+        raise typer.Exit(1)
+    finally:
+        # Cleanup
+        await metadata_store.close()
+        await vector_store.close()
+
+
+@doc_app.command("info")
+def doc_info(
+    document_id: str = typer.Argument(..., help="Document ID (UUID or name)"),
+    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name"),
+    full: bool = typer.Option(False, "--full", help="Display full content"),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Display detailed information about a specific document."""
+    asyncio.run(_doc_info_async(document_id, repository, full, json_output, config_file))
+
+
+async def _doc_info_async(
+    document_id: str,
+    repository: Optional[str],
+    full: bool,
+    json_output: bool,
+    config_file: Optional[Path],
+):
+    """Async implementation of doc info command."""
+    # Load configuration
+    config = _load_config(config_file)
+
+    # Determine repository
+    repo_name = repository or config.default_repository
+
+    # Ensure default repository exists and get stores
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+
+    try:
+        # Get repository
+        from memory.core.repository import RepositoryManager
+        repo_manager = RepositoryManager(metadata_store, vector_store)
+        repo = await repo_manager.get_repository_by_name(repo_name)
+
+        if not repo:
+            console.print(f"[red]Repository '{repo_name}' not found[/red]")
+            raise typer.Exit(1)
+
+        # Try to resolve document ID (UUID or name)
+        from uuid import UUID
+
+        try:
+            # Try as UUID first
+            doc_uuid = UUID(document_id)
+            document = await metadata_store.get_document(doc_uuid)
+        except (ValueError, TypeError):
+            # Not a UUID, try as name
+            all_docs = await metadata_store.list_documents(repository_id=repo.id)
+            matching_docs = [doc for doc in all_docs if (doc.title or doc.source_path) == document_id]
+
+            if not matching_docs:
+                console.print(f"[red]Document '{document_id}' not found in repository '{repo_name}'[/red]")
+                raise typer.Exit(1)
+            elif len(matching_docs) > 1:
+                console.print(f"[red]Multiple documents match '{document_id}'. Please use UUID:[/red]")
+                for doc in matching_docs:
+                    console.print(f"  - {(doc.title or doc.source_path)}: {doc.id}")
+                raise typer.Exit(1)
+            else:
+                document = matching_docs[0]
+
+        # Get document chunks for statistics
+        from memory.core.models import Chunk
+        chunks = await metadata_store.get_chunks_by_document(document.id)
+
+        # Calculate chunk statistics
+        chunk_stats = {
+            "count": len(chunks),
+            "avg_size": sum(len(c.content) for c in chunks) / len(chunks) if chunks else 0,
+            "total_size": sum(len(c.content) for c in chunks),
+        }
+
+        # Output results
+        if json_output:
+            # JSON output
+            import json
+
+            result = {
+                "id": str(document.id),
+                "name": document.title or document.source_path,
+                "type": document.doc_type.value if document.doc_type else None,
+                "source_path": document.source_path,
+                "repository_id": str(document.repository_id),
+                "repository_name": repo_name,
+                "created_at": document.created_at.isoformat() if document.created_at else None,
+                "updated_at": document.updated_at.isoformat() if document.updated_at else None,
+                "content_preview": document.content[:500] if not full else document.content,
+                "content_length": len(document.content),
+                "is_truncated": not full and len(document.content) > 500,
+                "chunk_stats": {
+                    "count": chunk_stats["count"],
+                    "average_size": round(chunk_stats["avg_size"], 2),
+                    "total_size": chunk_stats["total_size"],
+                },
+            }
+
+            console.print(json.dumps(result, indent=2))
+        else:
+            # Table output
+            table = Table(title=f"Document Information: {document.title or document.source_path}")
+            table.add_column("Property", style="cyan", no_wrap=True)
+            table.add_column("Value", style="green")
+
+            table.add_row("ID", str(document.id))
+            table.add_row("Name", document.title or document.source_path)
+            table.add_row("Type", document.doc_type.value if document.doc_type else "-")
+            table.add_row("Source Path", document.source_path)
+            table.add_row("Repository", repo_name)
+            table.add_row("Created", document.created_at.strftime("%Y-%m-%d %H:%M:%S") if document.created_at else "-")
+            table.add_row("Updated", document.updated_at.strftime("%Y-%m-%d %H:%M:%S") if document.updated_at else "-")
+            table.add_row("Content Length", f"{len(document.content)} characters")
+            table.add_row("Total Chunks", str(chunk_stats["count"]))
+            table.add_row("Avg Chunk Size", f"{chunk_stats['avg_size']:.2f} chars")
+
+            console.print(table)
+
+            # Content preview
+            console.print("\n[bold]Content Preview:[/bold]")
+            preview_content = document.content[:500] if not full else document.content
+            if len(document.content) > 500 and not full:
+                preview_content += "\n... (truncated)"
+            console.print(preview_content)
+
+    except Exception as e:
+        console.print(f"[red]Error getting document info: {str(e)}[/red]")
+        raise typer.Exit(1)
+    finally:
+        # Cleanup
+        await metadata_store.close()
+        await vector_store.close()
+
+
+@doc_app.command("delete")
+def doc_delete(
+    document_ids: list[str] = typer.Argument(..., help="Document ID(s) to delete (UUID or name)"),
+    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be deleted without actually deleting"),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Delete one or more documents and all their associated data."""
+    asyncio.run(_doc_delete_async(document_ids, repository, force, dry_run, config_file))
+
+
+async def _doc_delete_async(
+    document_ids: list[str],
+    repository: Optional[str],
+    force: bool,
+    dry_run: bool,
+    config_file: Optional[Path],
+):
+    """Async implementation of doc delete command."""
+    # Load configuration
+    config = _load_config(config_file)
+
+    # Determine repository
+    repo_name = repository or config.default_repository
+
+    # Ensure default repository exists and get stores
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+
+    try:
+        # Get repository
+        from memory.core.repository import RepositoryManager
+        repo_manager = RepositoryManager(metadata_store, vector_store)
+        repo = await repo_manager.get_repository_by_name(repo_name)
+
+        if not repo:
+            console.print(f"[red]Repository '{repo_name}' not found[/red]")
+            raise typer.Exit(1)
+
+        # Resolve all document IDs
+        from uuid import UUID
+        from memory.core.models import Chunk
+
+        documents_to_delete = []
+        errors = []
+
+        for doc_id in document_ids:
+            try:
+                # Try to resolve document ID (UUID or name)
+                try:
+                    # Try as UUID first
+                    doc_uuid = UUID(doc_id)
+                    document = await metadata_store.get_document(doc_uuid)
+                    if document:
+                        documents_to_delete.append(document)
+                except (ValueError, TypeError):
+                    # Not a UUID, try as name
+                    all_docs = await metadata_store.list_documents(repository_id=repo.id)
+                    matching_docs = [doc for doc in all_docs if (doc.title or doc.source_path) == doc_id]
+
+                    if not matching_docs:
+                        errors.append(f"Document '{doc_id}' not found in repository '{repo_name}'")
+                    elif len(matching_docs) > 1:
+                        errors.append(f"Multiple documents match '{doc_id}'. Please use UUID:")
+                        for doc in matching_docs:
+                            errors.append(f"  - {(doc.title or doc.source_path)}: {doc.id}")
+                    else:
+                        documents_to_delete.append(matching_docs[0])
+
+            except Exception as e:
+                errors.append(f"Error resolving document '{doc_id}': {str(e)}")
+
+        # Show errors if any
+        if errors:
+            for error in errors:
+                console.print(f"[red]{error}[/red]")
+            if not documents_to_delete:
+                raise typer.Exit(1)
+
+        # Dry run mode
+        if dry_run:
+            console.print("[yellow]Dry run mode - would delete:[/yellow]\n")
+            for doc in documents_to_delete:
+                # Get chunk count
+                chunks = await metadata_store.get_chunks_by_document(doc.id)
+                chunk_count = len(chunks)
+
+                # Get embedding count (approximate)
+                embedding_count = chunk_count  # Assume one embedding per chunk
+
+                console.print(f"Document: {doc.title or doc.source_path} ({doc.id})")
+                console.print(f"  - {chunk_count} chunks")
+                console.print(f"  - {embedding_count} embeddings")
+                console.print("")
+
+            console.print("[dim]No changes made. Use --force to actually delete.[/dim]")
+            return
+
+        # Confirmation prompt if not forced
+        if not force:
+            if len(documents_to_delete) == 1:
+                confirm_msg = f"Are you sure you want to delete document '{documents_to_delete[0].title or documents_to_delete[0].source_path}'? This will remove the document, all chunks, and all embeddings."
+            else:
+                confirm_msg = f"Are you sure you want to delete {len(documents_to_delete)} documents? This cannot be undone."
+
+            confirm = typer.confirm(confirm_msg, abort=True)
+
+        # Delete documents
+        deleted_count = 0
+        delete_errors = []
+
+        for document in documents_to_delete:
+            try:
+                # Get chunks for statistics
+                chunks = await metadata_store.get_chunks_by_document(document.id)
+                chunk_count = len(chunks)
+
+                # Delete from vector store first
+                try:
+                    await vector_store.delete_by_document_id(document.id)
+                except Exception as e:
+                    # Vector store delete might fail if no embeddings exist
+                    logger.warning("vector_store_delete_failed", document_id=str(document.id), error=str(e))
+
+                # Delete from metadata store (document and chunks)
+                try:
+                    await metadata_store.delete_document(document.id)
+                except Exception as e:
+                    raise Exception(f"Failed to delete document metadata: {str(e)}")
+
+                console.print(f"[green]✓[/green] Deleted document: {document.title or document.source_path} ({chunk_count} chunks removed)")
+                deleted_count += 1
+
+            except Exception as e:
+                delete_errors.append(f"Failed to delete document '{document.title or document.source_path}': {str(e)}")
+
+        # Show summary
+        if delete_errors:
+            console.print("\n[yellow]Some deletions encountered errors:[/yellow]")
+            for error in delete_errors:
+                console.print(f"[red]{error}[/red]")
+
+        console.print(f"\n[green]Successfully deleted {deleted_count} document(s)[/green]")
+
+    except typer.Abort:
+        # User cancelled confirmation
+        console.print("\n[yellow]Operation cancelled[/yellow]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error deleting documents: {str(e)}[/red]")
+        raise typer.Exit(1)
+    finally:
+        # Cleanup
+        await metadata_store.close()
+        await vector_store.close()
 
 
 @app.command()
