@@ -65,7 +65,7 @@ collection_name = "memory"
 
 # Document chunking configuration
 [chunking]
-chunk_size = 512
+chunk_size = 1024
 chunk_overlap = 50
 min_chunk_size = 100
 

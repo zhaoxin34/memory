@@ -295,13 +295,64 @@ def chunk_markdown_document(document: Document, config: ChunkingConfig) -> list[
     # Create Chunk objects
     chunks: list[Chunk] = []
     for idx, text in enumerate(merged_texts):
-        # Find the position in original text
-        start_char = document.content.find(text[:50])  # Use first 50 chars as anchor
+        # Find the position in original text using a more robust approach
+        start_char = -1
+        # Try to find the exact text first
+        start_char = document.content.find(text)
+
         if start_char == -1:
-            # Fallback: use character count based on chunk index
-            start_char = idx * (config.chunk_size - config.chunk_overlap)
-            start_char = min(start_char, len(document.content))
+            # If exact match fails, try first 50 chars as anchor
+            anchor = text[:50]
+            start_char = document.content.find(anchor)
+
+        if start_char == -1:
+            # Fallback: estimate position based on chunk index
+            # This is less accurate but ensures we don't crash
+            estimated_pos = idx * (config.chunk_size - config.chunk_overlap)
+            start_char = min(estimated_pos, len(document.content) - 1)
+
+        # Ensure end_char is always > start_char
         end_char = min(start_char + len(text), len(document.content))
+        if end_char <= start_char:
+            # Guarantee at least 1 character difference
+            end_char = min(start_char + 1, len(document.content))
+
+        # Determine the semantic type of this chunk by analyzing its content
+        # This is a heuristic - we check the primary content type of the chunk
+        chunk_type = "content"  # default
+        lines = text.split('\n')
+        first_line = lines[0].strip() if lines else ""
+
+        # Check if it's primarily a heading
+        if first_line.startswith("#"):
+            chunk_type = "heading"
+        # Check if it's primarily a code block
+        elif "```" in text:
+            # Check if more than half the content is code
+            code_lines = sum(1 for line in lines if line.startswith("    ") or "```" in line)
+            if code_lines > len(lines) / 2:
+                chunk_type = "code"
+        # Check if it's primarily a list
+        elif (text.strip().startswith("-") or text.strip().startswith("*") or
+              text.strip().startswith("+") or re.match(r"^\d+\.", text.strip())):
+            # Check if multiple lines are list items
+            list_lines = sum(1 for line in lines if (line.strip().startswith("-") or
+                                                      line.strip().startswith("*") or
+                                                      line.strip().startswith("+") or
+                                                      re.match(r"^\s*\d+\.", line)))
+            if list_lines > len(lines) / 2:
+                chunk_type = "list"
+        # Check if it's primarily a blockquote
+        elif text.strip().startswith(">"):
+            quote_lines = sum(1 for line in lines if line.strip().startswith(">"))
+            if quote_lines > len(lines) / 2:
+                chunk_type = "blockquote"
+        # Check if it's a horizontal rule
+        elif text.strip() == "---":
+            chunk_type = "hr"
+
+        # Store semantic type in metadata for later reference
+        chunk_metadata = {"chunk_type": chunk_type}
 
         chunk = Chunk(
             repository_id=document.repository_id,
@@ -310,6 +361,7 @@ def chunk_markdown_document(document: Document, config: ChunkingConfig) -> list[
             chunk_index=idx,
             start_char=start_char,
             end_char=end_char,
+            metadata=chunk_metadata,
         )
         chunks.append(chunk)
 

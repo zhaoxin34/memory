@@ -4,6 +4,7 @@ Commands:
 - ingest: Add documents to the knowledge base
 - search: Perform semantic search
 - ask: Ask questions with LLM-based answers
+- chunk: Analyze and display document chunking results
 - repo: Manage repositories
 - doc: Manage documents (query, info, delete)
 - info: Show system information
@@ -398,6 +399,304 @@ async def _ask_async(question: str, top_k: int, config_file: Optional[Path], rep
     await embedding_provider.close()
     await metadata_store.close()
     await vector_store.close()
+
+
+@app.command()
+def chunk(
+    source: str = typer.Argument(..., help="Document ID, name, or file path to analyze"),
+    size: Optional[int] = typer.Option(None, "--size", help="Custom chunk size in characters"),
+    overlap: Optional[int] = typer.Option(None, "--overlap", help="Custom chunk overlap in characters"),
+    test_mode: bool = typer.Option(False, "--test", help="Enable test mode (no changes saved)"),
+    json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    verbose: bool = typer.Option(False, "--verbose", help="Show detailed chunk information"),
+    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Analyze and display document chunking results."""
+    asyncio.run(_chunk_async(source, size, overlap, test_mode, json_output, verbose, repository, config_file))
+
+
+async def _chunk_async(
+    source: str,
+    size: Optional[int],
+    overlap: Optional[int],
+    test_mode: bool,
+    json_output: bool,
+    verbose: bool,
+    repository: Optional[str],
+    config_file: Optional[Path],
+):
+    """Async implementation of chunk command."""
+    from pathlib import Path
+    from uuid import UUID
+    from typing import Tuple, Optional
+
+    # Load configuration
+    config = _load_config(config_file)
+
+    # Validate chunking parameters
+    if size is not None and size <= 0:
+        console.print("[red]Error: --size must be greater than 0[/red]")
+        raise typer.Exit(1)
+
+    if overlap is not None and overlap < 0:
+        console.print("[red]Error: --overlap must be greater than or equal to 0[/red]")
+        raise typer.Exit(1)
+
+    # Test mode banner
+    if test_mode:
+        console.print("[cyan]Running in test mode - no changes will be saved[/cyan]\n")
+
+    # Initialize variables
+    metadata_store = None
+    vector_store = None
+    repository_obj = None
+
+    try:
+        # Determine repository
+        repo_name = repository or config.default_repository
+
+        # Check if source is a file path
+        source_path = Path(source)
+        is_file_path = source_path.exists()
+
+        if is_file_path:
+            # Handle file path input
+            console.print(f"[cyan]Analyzing file: {source}[/cyan]\n")
+
+            # Read file content
+            try:
+                content = source_path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                console.print(f"[yellow]Skipping non-text file: {source}[/yellow]")
+                raise typer.Exit(1)
+            except Exception as e:
+                console.print(f"[red]Error reading file: {str(e)}[/red]")
+                raise typer.Exit(1)
+
+            if not content.strip():
+                console.print("[yellow]Document is empty, no chunks created[/yellow]")
+                raise typer.Exit(0)
+
+            # Create a mock document for chunking
+            document_type = "markdown" if source_path.suffix.lower() in ['.md', '.markdown'] else "text"
+            doc_metadata = {
+                "source_path": str(source_path),
+                "file_size": source_path.stat().st_size,
+                "document_type": document_type,
+            }
+
+        else:
+            # Handle repository document input (UUID or name)
+            # Ensure default repository exists and get stores
+            metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+
+            # Get the repository object
+            from memory.core.repository import RepositoryManager
+            repo_manager = RepositoryManager(metadata_store, vector_store)
+            repository_obj = await repo_manager.get_repository_by_name(repo_name)
+
+            if not repository_obj:
+                console.print(f"[red]Repository '{repo_name}' not found[/red]")
+                raise typer.Exit(1)
+
+            console.print(f"[cyan]Analyzing document in repository '{repo_name}'[/cyan]\n")
+
+            # Try to resolve as UUID first
+            try:
+                doc_uuid = UUID(source)
+                document = await metadata_store.get_document(doc_uuid)
+                if not document:
+                    console.print(f"[red]Document '{source}' not found in repository '{repo_name}'[/red]")
+                    raise typer.Exit(1)
+            except (ValueError, TypeError):
+                # Not a UUID, try as name
+                all_docs = await metadata_store.list_documents(repository_id=repository_obj.id)
+                matching_docs = [doc for doc in all_docs if (doc.title or doc.source_path) == source]
+
+                if not matching_docs:
+                    console.print(f"[red]Document '{source}' not found in repository '{repo_name}'[/red]")
+                    raise typer.Exit(1)
+                elif len(matching_docs) > 1:
+                    console.print(f"[red]Multiple documents match '{source}'. Please use UUID:[/red]")
+                    for doc in matching_docs:
+                        console.print(f"  - {(doc.title or doc.source_path)}: {doc.id}")
+                    raise typer.Exit(1)
+                else:
+                    document = matching_docs[0]
+
+            content = document.content
+            doc_metadata = {
+                "document_id": str(document.id),
+                "source_path": document.source_path,
+                "document_type": document.doc_type.value if document.doc_type else "unknown",
+            }
+
+        # Now chunk the content
+        content_length = len(content)
+        if content_length > 10000:
+            console.print(f"[cyan]Chunking document ({content_length} characters)...[/cyan]\n")
+        else:
+            console.print("[cyan]Chunking document...[/cyan]\n")
+
+        # Create chunking config with overrides
+        from memory.config.schema import ChunkingConfig
+        from uuid import uuid4
+        from memory.core.markdown_chunking import chunk_markdown_document, parse_markdown_sections, smart_merge_chunks
+        from memory.core.models import Document as DomainDocument, DocumentType
+
+        chunking_config = ChunkingConfig(
+            chunk_size=size if size is not None else config.chunking.chunk_size,
+            chunk_overlap=overlap if overlap is not None else config.chunking.chunk_overlap,
+        )
+
+        # Perform chunking
+        try:
+            # For file-based input, create a temporary document with a generated UUID
+            if not repository_obj:
+                # Generate a temporary UUID for file-based chunking
+                temp_repo_id = uuid4()
+            else:
+                temp_repo_id = repository_obj.id
+
+            # Create a document object for chunking
+            domain_doc = DomainDocument(
+                repository_id=temp_repo_id,
+                source_path=doc_metadata.get("source_path", "unknown"),
+                doc_type=DocumentType.TEXT,
+                title=doc_metadata.get("source_path", "Document"),
+                content=content,
+                metadata=doc_metadata,
+            )
+
+            # Show progress for large documents
+            if content_length > 50000:
+                with console.status("[bold green]Processing chunks...[/bold green]"):
+                    chunks = chunk_markdown_document(domain_doc, chunking_config)
+            else:
+                chunks = chunk_markdown_document(domain_doc, chunking_config)
+        except Exception as e:
+            console.print(f"[red]Error during chunking: {str(e)}[/red]")
+            logger.error("chunking_error", error=str(e))
+            raise typer.Exit(1)
+
+        if not chunks:
+            console.print("[yellow]No chunks were created from this document[/yellow]")
+            raise typer.Exit(0)
+
+        # Display results
+        console.print(f"[green]✓ Successfully created {len(chunks)} chunks[/green]\n")
+
+        # Display document and repository information
+        if is_file_path:
+            console.print(f"[bold]Document:[/bold]")
+            console.print(f"  Source: {doc_metadata.get('source_path', 'unknown')}")
+            console.print(f"  Type: {doc_metadata.get('document_type', 'unknown')}")
+            if 'file_size' in doc_metadata:
+                console.print(f"  Size: {doc_metadata['file_size']} bytes")
+        else:
+            console.print(f"[bold]Repository:[/bold]")
+            console.print(f"  Name: {repo_name}")
+            console.print(f"  ID: {repository_obj.id}")
+            console.print(f"\n[bold]Document:[/bold]")
+            console.print(f"  ID: {doc_metadata.get('document_id', 'unknown')}")
+            console.print(f"  Source: {doc_metadata.get('source_path', 'unknown')}")
+            console.print(f"  Type: {doc_metadata.get('document_type', 'unknown')}")
+        console.print()
+
+        # Display statistics
+        chunk_sizes = [len(chunk.content) for chunk in chunks]
+        avg_size = sum(chunk_sizes) / len(chunk_sizes)
+        min_size = min(chunk_sizes)
+        max_size = max(chunk_sizes)
+
+        # Calculate chunk type distribution
+        type_counts = {}
+        for chunk in chunks:
+            chunk_type = chunk.metadata.get("chunk_type", "unknown")
+            type_counts[chunk_type] = type_counts.get(chunk_type, 0) + 1
+
+        console.print(f"[bold]Statistics:[/bold]")
+        console.print(f"  Total chunks: {len(chunks)}")
+        console.print(f"  Average size: {avg_size:.1f} characters")
+        console.print(f"  Size range: {min_size} - {max_size} characters")
+        console.print(f"  Chunk size used: {chunking_config.chunk_size}")
+        console.print(f"  Overlap used: {chunking_config.chunk_overlap}")
+
+        # Display chunk type distribution
+        console.print(f"\n[bold]Chunk Types:[/bold]")
+        for chunk_type, count in sorted(type_counts.items()):
+            percentage = (count / len(chunks)) * 100
+            console.print(f"  {chunk_type}: {count} ({percentage:.1f}%)")
+        console.print()
+
+        # Display chunks
+        if json_output:
+            import json
+            result = {
+                "document": doc_metadata,
+                "config": {
+                    "chunk_size": chunking_config.chunk_size,
+                    "overlap": chunking_config.chunk_overlap,
+                },
+                "statistics": {
+                    "total_chunks": len(chunks),
+                    "average_size": avg_size,
+                    "min_size": min_size,
+                    "max_size": max_size,
+                    "type_distribution": type_counts,
+                },
+                "chunks": [
+                    {
+                        "index": idx,
+                        "type": chunk.metadata.get("chunk_type", "unknown"),
+                        "content": chunk.content if verbose else chunk.content[:200] + "..." if len(chunk.content) > 200 else chunk.content,
+                        "size": len(chunk.content),
+                        "start_char": chunk.start_char,
+                        "end_char": chunk.end_char,
+                    }
+                    for idx, chunk in enumerate(chunks)
+                ],
+            }
+            console.print(json.dumps(result, indent=2))
+        else:
+            # Table output
+            table = Table(title="Chunk Analysis Results")
+            table.add_column("Index", style="cyan", no_wrap=True)
+            table.add_column("Type", style="magenta", no_wrap=True)
+            table.add_column("Size", style="yellow", no_wrap=True)
+            table.add_column("Range", style="blue", no_wrap=True)
+            table.add_column("Content Preview", style="green")
+
+            for idx, chunk in enumerate(chunks):
+                chunk_type = chunk.metadata.get("chunk_type", "unknown")
+                if verbose:
+                    # Show more content in verbose mode
+                    preview = chunk.content if len(chunk.content) <= 500 else chunk.content[:500] + "..."
+                else:
+                    preview = chunk.content[:100] + "..." if len(chunk.content) > 100 else chunk.content
+
+                table.add_row(
+                    str(idx),
+                    chunk_type,
+                    f"{len(chunk.content)} chars",
+                    f"{chunk.start_char}-{chunk.end_char}",
+                    preview,
+                )
+
+            console.print(table)
+
+    except Exception as e:
+        console.print(f"\n[red]Error: {str(e)}[/red]")
+        logger.error("chunk_error", error=str(e))
+        raise typer.Exit(1)
+
+    finally:
+        # Cleanup
+        if metadata_store:
+            await metadata_store.close()
+        if vector_store:
+            await vector_store.close()
 
 
 # Repository management subcommand group
