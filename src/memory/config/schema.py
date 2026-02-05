@@ -102,11 +102,17 @@ class MetadataStoreConfig(BaseModel):
 
 
 class ChunkingConfig(BaseModel):
-    """Document chunking configuration."""
+    """Document chunking configuration.
 
-    chunk_size: int = Field(default=512, gt=0)
-    chunk_overlap: int = Field(default=50, ge=0)
-    min_chunk_size: int = Field(default=100, gt=0)
+    For Markdown documents, these defaults are optimized to preserve semantic structure:
+    - chunk_size: 2000 characters (allows full paragraphs + headings)
+    - chunk_overlap: 200 characters (maintains context across chunks)
+    - min_chunk_size: 200 characters (filters out fragments)
+    """
+
+    chunk_size: int = Field(default=2000, gt=0, description="Target chunk size in characters")
+    chunk_overlap: int = Field(default=200, ge=0, description="Overlap between chunks in characters")
+    min_chunk_size: int = Field(default=200, gt=0, description="Minimum chunk size (smaller chunks are discarded)")
 
 
 class AppConfig(BaseSettings):

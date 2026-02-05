@@ -9,12 +9,15 @@ How to extend:
 - Add semantic chunking (sentence/paragraph boundaries)
 - Add language-specific chunking
 - Add code-aware chunking
+
+Specialized chunking:
+- Markdown-aware chunking for .md files (preserves headings, paragraphs, lists)
 """
 
 from typing import Iterator
 
 from memory.config.schema import ChunkingConfig
-from memory.core.models import Chunk, Document
+from memory.core.models import Chunk, Document, DocumentType
 from memory.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -92,6 +95,10 @@ def chunk_text(
 def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     """Create chunks from a document.
 
+    Uses specialized chunking strategies based on document type:
+    - Markdown documents: Uses semantic chunking that preserves structure
+    - Other documents: Uses fixed-size chunking with overlap
+
     Args:
         document: Document to chunk
         config: Chunking configuration
@@ -99,6 +106,20 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     Returns:
         List of chunks
     """
+    # Use Markdown-aware chunking for Markdown documents
+    if document.doc_type == DocumentType.MARKDOWN:
+        try:
+            from memory.core.markdown_chunking import chunk_markdown_document
+            return chunk_markdown_document(document, config)
+        except ImportError as e:
+            logger.warning(
+                "markdown_chunking_fallback",
+                document_id=str(document.id),
+                error=str(e),
+            )
+            # Fallback to regular chunking
+
+    # Default: Use fixed-size chunking for non-Markdown documents
     chunks = []
 
     for idx, (text_content, start_char, end_char) in enumerate(
@@ -122,6 +143,7 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     logger.info(
         "document_chunked",
         document_id=str(document.id),
+        document_type=document.doc_type.value if document.doc_type else "unknown",
         chunk_count=len(chunks),
         avg_chunk_size=sum(len(c.content) for c in chunks) // len(chunks) if chunks else 0,
     )

@@ -172,9 +172,9 @@ store_type = "sqlite"
 connection_string = "sqlite:///~/.memory/memory.db"
 
 [chunking]
-chunk_size = 512
-chunk_overlap = 50
-min_chunk_size = 100
+chunk_size = 2000
+chunk_overlap = 200
+min_chunk_size = 200
 ```
 
 ### 配置示例 2: OpenAI 云端部署
@@ -210,8 +210,46 @@ store_type = "sqlite"
 connection_string = "sqlite:///~/.memory/memory.db"
 
 [chunking]
-chunk_size = 512
-chunk_overlap = 50
+chunk_size = 2000
+chunk_overlap = 200
+min_chunk_size = 200
+```
+
+### 分块配置
+
+#### Markdown 文档分块（推荐）
+
+系统现在支持智能 Markdown 分块，会自动识别 Markdown 语义结构：
+- 保持标题和内容的完整性
+- 避免在段落、列表、代码块中间分块
+- 自动合并过小的内容片段
+
+默认配置已针对 Markdown 优化：
+
+```toml
+[chunking]
+chunk_size = 2000      # 增大块大小以包含完整段落
+chunk_overlap = 200    # 增加重叠保持上下文连续性
+min_chunk_size = 200   # 提高最小块大小过滤碎片
+```
+
+**效果对比**：
+- **优化前**: "## 标题\n这是第一段内容" 可能被分成两个块
+- **优化后**: 标题和内容会保持在同一个块中，保持语义完整性
+
+#### 自定义分块策略
+
+如果需要针对特定文档类型调整：
+
+```toml
+[chunking]
+chunk_size = 3000      # 更大的块（适合技术文档）
+chunk_overlap = 300
+min_chunk_size = 300
+
+# 或更小的块（适合FAQ）
+chunk_size = 1000
+chunk_overlap = 100
 min_chunk_size = 100
 ```
 

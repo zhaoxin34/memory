@@ -774,6 +774,12 @@ async def _doc_query_async(
         end_idx = min(start_idx + page_size, total_docs)
         page_docs = all_docs[start_idx:end_idx]
 
+        # Get chunk counts for each document
+        chunk_counts = {}
+        for doc in page_docs:
+            chunks = await metadata_store.get_chunks_by_document(doc.id)
+            chunk_counts[doc.id] = len(chunks)
+
         # Output results
         if json_output:
             # JSON output
@@ -790,7 +796,7 @@ async def _doc_query_async(
                         "id": str(doc.id),
                         "name": doc.title or doc.source_path,
                         "source_path": doc.source_path,
-                        "chunk_count": 0,  # TODO: Get actual chunk count
+                        "chunk_count": chunk_counts.get(doc.id, 0),
                         "created_at": doc.created_at.isoformat() if doc.created_at else None,
                         "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
                     }
@@ -816,8 +822,8 @@ async def _doc_query_async(
                         str(doc.id),
                         doc.title or doc.source_path,
                         doc.source_path,
-                        "0",  # TODO: Get actual chunk count
-                        doc.created_at.strftime("%Y-%m-%d") if doc.created_at else "-",
+                        str(chunk_counts.get(doc.id, 0)),
+                        doc.created_at.strftime("%Y-%m-%d %H:%M:%S") if doc.created_at else "-",
                     )
 
                 console.print(table)
