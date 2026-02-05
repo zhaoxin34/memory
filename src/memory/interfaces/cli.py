@@ -11,6 +11,7 @@ Commands:
 """
 
 import asyncio
+import datetime as dt
 from pathlib import Path
 from typing import Optional
 
@@ -74,15 +75,20 @@ def ingest(
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest directory"),
     repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing documents with the same source path"),
 ):
     """Ingest documents into the knowledge base."""
-    asyncio.run(_ingest_async(path, config_file, recursive, repository))
+    asyncio.run(_ingest_async(path, config_file, recursive, repository, force))
 
 
-async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool, repository: Optional[str]):
+async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool, repository: Optional[str], force: bool):
     """Async implementation of ingest command."""
     # Load configuration
     config = _load_config(config_file)
+
+    # Show warning if --force flag is used
+    if force:
+        console.print("[yellow]WARNING: Using --force flag will overwrite existing documents![/yellow]\n")
 
     # Ensure default repository exists
     metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
@@ -158,6 +164,7 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
         # Ingest each file
         success_count = 0
         error_count = 0
+        overwrite_count = 0
 
         for file_path in files_to_ingest:
             try:
@@ -165,6 +172,10 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
 
                 # Read file content
                 content = file_path.read_text(encoding="utf-8")
+
+                # Calculate MD5 hash of content
+                import hashlib
+                content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
 
                 # Create document object
                 from memory.core.models import Document, DocumentType
@@ -175,13 +186,27 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
                     doc_type=DocumentType.TEXT,
                     title=file_path.stem,
                     content=content,
+                    content_md5=content_md5,
                     metadata={"file_size": file_path.stat().st_size},
                 )
 
                 # Ingest document
-                num_chunks = await pipeline.ingest_document(document)
+                result = await pipeline.ingest_document(document, force=force)
 
-                console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({num_chunks} chunks, ID: {document.id})")
+                # Check if document was actually updated
+                if result.updated or result.reason == "new_document":
+                    if result.reason == "content_changed":
+                        console.print(f"  [green]✓[/green] Updated (content changed): {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
+                        overwrite_count += 1
+                    elif result.reason == "forced":
+                        console.print(f"  [green]✓[/green] Re-imported (forced): {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
+                        overwrite_count += 1
+                    elif result.reason == "new_document":
+                        console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
+                    else:
+                        console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
+                else:
+                    console.print(f"  [dim]→[/dim] Skipped (content unchanged): {file_path.name}")
                 success_count += 1
 
             except UnicodeDecodeError:
@@ -194,7 +219,13 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
 
         # Summary
         console.print()
-        console.print(f"[green]Successfully ingested: {success_count} file(s)[/green]")
+        if force:
+            console.print(f"[green]Successfully processed: {success_count} file(s)[/green]")
+            console.print(f"  - Overwritten: {overwrite_count}")
+            console.print(f"  - Newly created: {success_count - overwrite_count}")
+        else:
+            console.print(f"[green]Successfully ingested: {success_count} file(s)[/green]")
+
         if error_count > 0:
             console.print(f"[yellow]Errors: {error_count} file(s)[/yellow]")
 
@@ -851,8 +882,14 @@ async def _repo_info_async(name: str, config_file: Optional[Path]):
         table.add_row("Description", repository.description or "-")
         table.add_row("Documents", str(doc_count))
         table.add_row("Total Embeddings", str(embedding_count))
-        table.add_row("Created", repository.created_at.strftime("%Y-%m-%d %H:%M:%S"))
-        table.add_row("Updated", repository.updated_at.strftime("%Y-%m-%d %H:%M:%S"))
+        # Convert UTC to local timezone for display
+        # Assume stored time is UTC (no timezone info), convert to local
+        created_utc = repository.created_at.replace(tzinfo=dt.timezone.utc)
+        updated_utc = repository.updated_at.replace(tzinfo=dt.timezone.utc)
+        created_local = created_utc.astimezone()
+        updated_local = updated_utc.astimezone()
+        table.add_row("Created", created_local.strftime("%Y-%m-%d %H:%M:%S"))
+        table.add_row("Updated", updated_local.strftime("%Y-%m-%d %H:%M:%S"))
 
         console.print(table)
 
@@ -1115,6 +1152,7 @@ async def _doc_query_async(
                 table.add_column("Source Path", style="green")
                 table.add_column("Chunks", style="yellow")
                 table.add_column("Created", style="blue")
+                table.add_column("Updated", style="magenta")
 
                 for doc in page_docs:
                     table.add_row(
@@ -1122,7 +1160,8 @@ async def _doc_query_async(
                         doc.title or doc.source_path,
                         doc.source_path,
                         str(chunk_counts.get(doc.id, 0)),
-                        doc.created_at.strftime("%Y-%m-%d %H:%M:%S") if doc.created_at else "-",
+                        doc.created_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if doc.created_at else "-",
+                        doc.updated_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if doc.updated_at else "-",
                     )
 
                 console.print(table)
@@ -1249,8 +1288,8 @@ async def _doc_info_async(
             table.add_row("Type", document.doc_type.value if document.doc_type else "-")
             table.add_row("Source Path", document.source_path)
             table.add_row("Repository", repo_name)
-            table.add_row("Created", document.created_at.strftime("%Y-%m-%d %H:%M:%S") if document.created_at else "-")
-            table.add_row("Updated", document.updated_at.strftime("%Y-%m-%d %H:%M:%S") if document.updated_at else "-")
+            table.add_row("Created", document.created_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if document.created_at else "-")
+            table.add_row("Updated", document.updated_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if document.updated_at else "-")
             table.add_row("Content Length", f"{len(document.content)} characters")
             table.add_row("Total Chunks", str(chunk_stats["count"]))
             table.add_row("Avg Chunk Size", f"{chunk_stats['avg_size']:.2f} chars")

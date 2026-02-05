@@ -13,7 +13,8 @@
       "Bash(python3 -m py_compile:*)",
       "Skill(commit-commands:commit)",
       "Bash(sqlite3:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(python3:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

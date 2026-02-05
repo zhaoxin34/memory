@@ -70,12 +70,22 @@ class SQLiteMetadataStore(MetadataStore):
                     doc_type TEXT NOT NULL,
                     title TEXT,
                     content TEXT NOT NULL,
+                    content_md5 TEXT,
                     metadata TEXT NOT NULL,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     FOREIGN KEY (repository_id) REFERENCES repositories(id) ON DELETE CASCADE
                 )
             """)
+
+            # Migration: Add content_md5 column if it doesn't exist
+            # Check if column exists first
+            cursor = await self.connection.execute("PRAGMA table_info(documents)")
+            columns = [row[1] for row in await cursor.fetchall()]
+            if 'content_md5' not in columns:
+                await self.connection.execute("""
+                    ALTER TABLE documents ADD COLUMN content_md5 TEXT
+                """)
 
             # Create chunks table with repository_id
             await self.connection.execute("""
@@ -297,8 +307,8 @@ class SQLiteMetadataStore(MetadataStore):
         try:
             await self.connection.execute(
                 """
-                INSERT INTO documents (id, repository_id, source_path, doc_type, title, content, metadata, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO documents (id, repository_id, source_path, doc_type, title, content, content_md5, metadata, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(document.id),
@@ -307,6 +317,7 @@ class SQLiteMetadataStore(MetadataStore):
                     document.doc_type.value,
                     document.title,
                     document.content,
+                    document.content_md5,
                     json.dumps(document.metadata),
                     document.created_at.isoformat(),
                     document.updated_at.isoformat(),
@@ -342,6 +353,7 @@ class SQLiteMetadataStore(MetadataStore):
                 doc_type=DocumentType(row["doc_type"]),
                 title=row["title"],
                 content=row["content"],
+                content_md5=row["content_md5"],
                 metadata=json.loads(row["metadata"]),
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -505,6 +517,7 @@ class SQLiteMetadataStore(MetadataStore):
                     doc_type=DocumentType(row["doc_type"]),
                     title=row["title"],
                     content=row["content"],
+                    content_md5=row["content_md5"],
                     metadata=json.loads(row["metadata"]),
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=datetime.fromisoformat(row["updated_at"]),

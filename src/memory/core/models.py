@@ -61,6 +61,7 @@ class Document(BaseModel):
     doc_type: DocumentType = Field(default=DocumentType.UNKNOWN)
     title: Optional[str] = None
     content: str = Field(..., description="Full text content of the document")
+    content_md5: Optional[str] = Field(None, description="MD5 hash of the document content")
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
