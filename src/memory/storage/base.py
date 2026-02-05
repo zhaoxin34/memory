@@ -286,6 +286,24 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
+    async def delete_by_repository(self, repository_id: UUID) -> int:
+        """Delete all documents, chunks, and embeddings for a repository.
+
+        This removes all data associated with a repository while preserving
+        the repository itself.
+
+        Args:
+            repository_id: Repository ID to clear
+
+        Returns:
+            Number of documents deleted
+
+        Raises:
+            StorageError: If deletion fails
+        """
+        pass
+
+    @abstractmethod
     async def close(self) -> None:
         """Close connections and cleanup resources."""
         pass

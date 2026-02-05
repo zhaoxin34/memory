@@ -45,25 +45,11 @@ async def _ensure_default_repository(config: AppConfig):
     """
     from memory.core.repository import RepositoryManager
     from memory.storage import create_metadata_store, create_vector_store
-    from memory.storage.base import StorageConfig
-
-    # Create storage configuration
-    vector_storage_config = StorageConfig(
-        storage_type=config.vector_store.store_type,
-        collection_name=config.vector_store.collection_name,
-        extra_params=config.vector_store.extra_params,
-    )
-
-    metadata_storage_config = StorageConfig(
-        storage_type=config.metadata_store.store_type,
-        collection_name=config.vector_store.collection_name,
-        extra_params=config.metadata_store.extra_params,
-    )
 
     # Create stores using factory functions
     try:
-        metadata_store = create_metadata_store(metadata_storage_config)
-        vector_store = create_vector_store(vector_storage_config)
+        metadata_store = create_metadata_store(config.metadata_store)
+        vector_store = create_vector_store(config.vector_store)
 
         await metadata_store.initialize()
         await vector_store.initialize()
@@ -233,84 +219,87 @@ async def _search_async(query: str, top_k: int, config_file: Optional[Path], rep
     """Async implementation of search command."""
     config = _load_config(config_file)
 
-    # Ensure default repository exists
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    # Initialize stores
+    metadata_store = None
+    vector_store = None
+    embedding_provider = None
 
-    # Use provided repository or fall back to default
-    repo_name = repository or config.default_repository
-
-    # Get the repository object
-    from memory.core.repository import RepositoryManager
-    repo_manager = RepositoryManager(metadata_store, vector_store)
-    repo = await repo_manager.get_repository_by_name(repo_name)
-
-    if not repo:
-        console.print(f"[red]Repository '{repo_name}' not found[/red]")
-        raise typer.Exit(1)
-
-    # Create embedding provider
     try:
-        from memory.providers import create_embedding_provider
-        from memory.providers.base import ProviderConfig
+        # Ensure default repository exists
+        metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
-        provider_config = ProviderConfig(
-            provider_type=config.embedding.provider,
-            model_name=config.embedding.model_name,
-            api_key=config.embedding.api_key,
-            extra_params=config.embedding.extra_params,
-        )
+        # Use provided repository or fall back to default
+        repo_name = repository or config.default_repository
 
-        embedding_provider = create_embedding_provider(provider_config)
+        # Get the repository object
+        from memory.core.repository import RepositoryManager
+        repo_manager = RepositoryManager(metadata_store, vector_store)
+        repo = await repo_manager.get_repository_by_name(repo_name)
 
-    except Exception as e:
-        console.print(f"[red]Error creating embedding provider: {str(e)}[/red]")
-        raise typer.Exit(1)
+        if not repo:
+            console.print(f"[red]Repository '{repo_name}' not found[/red]")
+            return
 
-    # Initialize query pipeline
-    from memory.pipelines.query import QueryPipeline
+        # Create embedding provider
+        try:
+            from memory.providers import create_embedding_provider
+            from memory.providers.base import ProviderConfig
 
-    # Create a simple LLM provider for search (not used in search mode)
-    # Note: LLM provider not used in search, but required by QueryPipeline
-    llm_provider = None
+            provider_config = ProviderConfig(
+                provider_type=config.embedding.provider,
+                model_name=config.embedding.model_name,
+                api_key=config.embedding.api_key,
+                extra_params=config.embedding.extra_params,
+            )
 
-    pipeline = QueryPipeline(
-        config=config,
-        embedding_provider=embedding_provider,
-        llm_provider=llm_provider,
-        vector_store=vector_store,
-        metadata_store=metadata_store,
-    )
+            console.print(f"[cyan]Initializing embedding provider: {config.embedding.provider.value}...[/cyan]")
+            embedding_provider = create_embedding_provider(provider_config)
+            console.print(f"[green]✓ Embedding provider ready[/green]")
 
-    # Perform search
-    try:
-        console.print(f"[cyan]Searching in repository '{repo_name}'...[/cyan]")
+        except Exception as e:
+            console.print(f"[red]Error creating embedding provider: {str(e)}[/red]")
+            return
 
-        results = await pipeline.search(
-            query=query,
-            top_k=top_k,
-            repository_id=repo.id,
-        )
+        # Perform search directly using vector store
+        try:
+            console.print(f"[cyan]Searching in repository '{repo_name}'...[/cyan]")
 
-        if not results:
-            console.print("[yellow]No results found[/yellow]")
-        else:
-            console.print(f"\n[green]Found {len(results)} result(s):[/green]\n")
+            # Generate query embedding
+            console.print("  Generating query embedding...")
+            query_vector = await embedding_provider.embed_text(query)
+            console.print(f"  ✓ Embedding generated (dimension: {len(query_vector)})")
 
-            for i, result in enumerate(results, 1):
-                console.print(f"[bold cyan]{i}. Score: {result.score:.4f}[/bold cyan]")
-                console.print(f"   Document ID: {result.document_id}")
-                console.print(f"   Chunk: {result.chunk.content[:200]}...")
-                console.print()
+            # Search in vector store
+            console.print("  Searching...")
+            results = await vector_store.search(
+                query_vector=query_vector,
+                top_k=top_k,
+                repository_id=repo.id,
+            )
 
-    except Exception as e:
-        console.print(f"[red]Search error: {str(e)}[/red]")
-        logger.error("search_error", error=str(e))
-        raise typer.Exit(1)
+            if not results:
+                console.print("[yellow]No results found[/yellow]")
+            else:
+                console.print(f"\n[green]Found {len(results)} result(s):[/green]\n")
 
-    # Cleanup
-    await embedding_provider.close()
-    await metadata_store.close()
-    await vector_store.close()
+                for i, result in enumerate(results, 1):
+                    console.print(f"[bold cyan]{i}. Score: {result.score:.4f}[/bold cyan]")
+                    console.print(f"   Document ID: {result.chunk.document_id}")
+                    console.print(f"   Chunk: {result.chunk.content[:200]}...")
+                    console.print()
+
+        except Exception as e:
+            console.print(f"[red]Search error: {str(e)}[/red]")
+            logger.error("search_error", error=str(e))
+
+    finally:
+        # Cleanup - always execute
+        if embedding_provider:
+            await embedding_provider.close()
+        if metadata_store:
+            await metadata_store.close()
+        if vector_store:
+            await vector_store.close()
 
 
 @app.command()
@@ -630,6 +619,68 @@ async def _repo_delete_async(name: str, force: bool, config_file: Optional[Path]
     # Cleanup
     await metadata_store.close()
     await vector_store.close()
+
+
+@repo_app.command("clear")
+def repo_clear(
+    name: str = typer.Argument(..., help="Repository name"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview what would be deleted without actually deleting"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+):
+    """Clear all documents from a repository."""
+    asyncio.run(_repo_clear_async(name, dry_run, yes, config_file))
+
+
+async def _repo_clear_async(name: str, dry_run: bool, yes: bool, config_file: Optional[Path]):
+    """Async implementation of repo clear command."""
+    config = _load_config(config_file)
+
+    # Ensure default repository exists and get stores
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+
+    # Create repository manager
+    from memory.core.repository import RepositoryManager
+    repo_manager = RepositoryManager(metadata_store, vector_store)
+
+    try:
+        # Get repository
+        repository = await repo_manager.get_repository_by_name(name)
+
+        if not repository:
+            console.print(f"[red]Repository '{name}' not found[/red]")
+            raise typer.Exit(1)
+
+        # Get document count
+        docs = await metadata_store.list_documents(repository_id=repository.id)
+        doc_count = len(docs)
+
+        # Dry run mode
+        if dry_run:
+            console.print(f"[yellow]DRY RUN:[/yellow] Would clear {doc_count} documents from '{name}'")
+            console.print("[yellow]No changes were made.[/yellow]")
+            return
+
+        # Confirmation prompt unless --yes is used
+        if not yes:
+            console.print(f"\n[bold red]WARNING:[/bold red] This will permanently delete ALL documents")
+            console.print(f"from repository '{name}'.\n")
+
+            confirm = typer.confirm("Are you sure you want to continue?", abort=True)
+
+        # Clear repository
+        deleted_count = await repo_manager.clear_repository(repository.id)
+
+        console.print(f"\n[green]✓[/green] Successfully cleared {deleted_count} documents")
+        console.print(f"  Repository '{name}' is now empty")
+
+    except Exception as e:
+        console.print(f"\n[red]✗ Error clearing repository: {str(e)}[/red]")
+        raise typer.Exit(1)
+    finally:
+        # Cleanup - always execute
+        await metadata_store.close()
+        await vector_store.close()
 
 
 # Document management subcommand group

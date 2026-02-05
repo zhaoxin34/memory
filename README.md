@@ -66,6 +66,15 @@ memory repo list
 # 查看仓库信息
 memory repo info my-project
 
+# 清空仓库中的所有文档（保留仓库配置）
+memory repo clear my-project
+
+# 预览清空操作（不实际删除）
+memory repo clear my-project --dry-run
+
+# 自动确认清空操作（跳过确认提示）
+memory repo clear my-project --yes
+
 # 导入文档到指定仓库
 memory ingest /path/to/documents --repository my-project --recursive
 

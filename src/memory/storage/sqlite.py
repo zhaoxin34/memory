@@ -94,6 +94,9 @@ class SQLiteMetadataStore(MetadataStore):
                 )
             """)
 
+            # Enable foreign key constraints for CASCADE DELETE to work
+            await self.connection.execute("PRAGMA foreign_keys = ON")
+
             # Create indices for better query performance
             await self.connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_documents_repository ON documents(repository_id)"
@@ -247,6 +250,41 @@ class SQLiteMetadataStore(MetadataStore):
         except Exception as e:
             raise StorageError(
                 f"Failed to delete repository: {e}",
+                storage_type="sqlite",
+                original_error=e,
+            )
+
+    async def delete_by_repository(self, repository_id: UUID) -> int:
+        """Delete all documents, chunks, and embeddings for a repository.
+
+        This removes all data associated with a repository while preserving
+        the repository itself.
+
+        Args:
+            repository_id: Repository ID to clear
+
+        Returns:
+            Number of documents deleted
+
+        Raises:
+            StorageError: If deletion fails
+        """
+        if not self.connection:
+            raise StorageError("Database not initialized", storage_type="sqlite")
+
+        try:
+            # Delete all documents for this repository
+            # Chunks will be automatically deleted via CASCADE DELETE
+            cursor = await self.connection.execute(
+                "DELETE FROM documents WHERE repository_id = ?",
+                (str(repository_id),),
+            )
+            await self.connection.commit()
+            doc_count = cursor.rowcount
+            return doc_count
+        except Exception as e:
+            raise StorageError(
+                f"Failed to delete documents by repository: {e}",
                 storage_type="sqlite",
                 original_error=e,
             )

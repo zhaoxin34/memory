@@ -237,6 +237,47 @@ class InMemoryMetadataStore(MetadataStore):
         del self.repositories[repository_id]
         return True
 
+    async def delete_by_repository(self, repository_id: UUID) -> int:
+        """Delete all documents, chunks, and embeddings for a repository.
+
+        This removes all data associated with a repository while preserving
+        the repository itself.
+
+        Args:
+            repository_id: Repository ID to clear
+
+        Returns:
+            Number of documents deleted
+        """
+        # Find all documents in the repository
+        docs_to_delete = [
+            doc_id for doc_id, doc in self.documents.items()
+            if doc.repository_id == repository_id
+        ]
+        doc_count = len(docs_to_delete)
+
+        # Delete all chunks associated with these documents
+        chunk_ids_to_delete = [
+            chunk_id for chunk_id, chunk in self.chunks.items()
+            if chunk.document_id in docs_to_delete
+        ]
+        for chunk_id in chunk_ids_to_delete:
+            del self.chunks[chunk_id]
+
+        # Also delete any orphaned chunks (shouldn't exist with proper foreign keys)
+        orphaned_chunk_ids = [
+            chunk_id for chunk_id, chunk in self.chunks.items()
+            if chunk.repository_id == repository_id
+        ]
+        for chunk_id in orphaned_chunk_ids:
+            del self.chunks[chunk_id]
+
+        # Delete the documents
+        for doc_id in docs_to_delete:
+            del self.documents[doc_id]
+
+        return doc_count
+
     async def close(self) -> None:
         """Close connections and cleanup resources."""
         self.repositories.clear()

@@ -167,6 +167,53 @@ class RepositoryManager:
             )
             raise RepositoryError(f"Failed to delete repository: {e}") from e
 
+    async def clear_repository(self, repository_id: UUID) -> int:
+        """Clear all documents from a repository.
+
+        This removes all documents, chunks, and embeddings while
+        preserving the repository itself.
+
+        Args:
+            repository_id: The repository ID to clear
+
+        Returns:
+            Number of documents deleted
+
+        Raises:
+            RepositoryNotFoundError: If repository doesn't exist
+            RepositoryError: If deletion fails
+        """
+        logger.info("repository_clear_started", repository_id=str(repository_id))
+
+        # Verify repository exists
+        repository = await self.metadata_store.get_repository(repository_id)
+        if not repository:
+            logger.warning("repository_not_found", repository_id=str(repository_id))
+            raise RepositoryNotFoundError(f"Repository {repository_id} not found")
+
+        try:
+            # Delete from metadata store (documents and chunks via CASCADE)
+            doc_count = await self.metadata_store.delete_by_repository(repository_id)
+
+            # Delete from vector store
+            await self.vector_store.delete_by_repository(repository_id)
+
+            logger.info(
+                "repository_cleared",
+                repository_id=str(repository_id),
+                document_count=doc_count,
+            )
+
+            return doc_count
+
+        except Exception as e:
+            logger.error(
+                "repository_clear_error",
+                repository_id=str(repository_id),
+                error=str(e),
+            )
+            raise RepositoryError(f"Failed to clear repository: {e}") from e
+
     async def ensure_default_repository(self, default_name: str = "default") -> Repository:
         """Ensure the default repository exists, creating it if necessary.
 
@@ -206,5 +253,11 @@ class RepositoryManager:
 
 class RepositoryError(Exception):
     """Exception raised during repository operations."""
+
+    pass
+
+
+class RepositoryNotFoundError(RepositoryError):
+    """Exception raised when a repository is not found."""
 
     pass

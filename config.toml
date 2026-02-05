@@ -11,33 +11,32 @@ json_logs = false
 default_repository = "default" # Default repository for documents (can be overridden with MEMORY_DEFAULT_REPOSITORY)
 
 # Embedding provider configuration
-# Choose between local (sentence-transformers) or OpenAI embeddings
-# [embedding]
-# provider = "local"              # Options: local, openai
-# model_name = "all-MiniLM-L6-v2" # For local: all-MiniLM-L6-v2, all-mpnet-base-v2, etc.
-#                                 # For openai: text-embedding-3-small, text-embedding-3-large, text-embedding-ada-002
-# batch_size = 32
-
-# For local provider: Install with `uv sync --extra local`
-# This will install sentence-transformers and torch
-
-# For OpenAI provider: Install with `uv sync --extra openai`
-# Uncomment the line below and set your API key:
-# api_key = "${OPENAI_API_KEY}"  # Use environment variable or set directly
-
-# Example OpenAI configuration:
+# Choose between local, OpenAI, or custom API embeddings
 [embedding]
+# Options:
+# - "local": Use local sentence-transformers models
+# - "openai": Use OpenAI-compatible API (supports custom base_url via extra_params)
 provider = "openai"
+# For OpenAI: text-embedding-3-small, text-embedding-3-large, text-embedding-v4, text-embedding-ada-002
+# For local: all-MiniLM-L6-v2, all-mpnet-base-v2, etc.
 model_name = "text-embedding-v4"
-api_key = "${BAILIAN_API_KEY}"
-batch_size = 100
+# API key environment variable name (code will call os.getenv(api_key))
+# Example: api_key = "BAILIAN_API_KEY" means the code will call os.getenv("BAILIAN_API_KEY")
+api_key = "BAILIAN_API_KEY"
+batch_size = 10
+
+# For custom API (e.g., 阿里云百炼), set base_url in extra_params:
+[embedding.extra_params]
+base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 # LLM provider configuration (for ask command)
 # Note: LLM providers are not yet implemented
 [llm]
-provider = "openai"            # Options: openai, anthropic (not yet implemented)
+provider = "openai"      # Options: openai, anthropic (not yet implemented)
 model_name = "qwen3-max"
-api_key = "${BAILIAN_API_KEY}" # Use environment variable
+# API key environment variable name (code will call os.getenv(api_key))
+# Example: api_key = "BAILIAN_API_KEY" means the code will call os.getenv("BAILIAN_API_KEY")
+api_key = "BAILIAN_API_KEY"
 max_tokens = 2000
 temperature = 0.7
 
@@ -93,7 +92,9 @@ log_level = "INFO"
 [profiles.openai.embedding]
 provider = "openai"
 model_name = "text-embedding-3-small"
-api_key = "${OPENAI_API_KEY}"
+# Note: Set OPENAI_API_KEY environment variable for this profile
+# Or copy and modify this profile to use BAiLIAN API
+api_key = "OPENAI_API_KEY"
 [profiles.openai.vector_store]
 store_type = "chroma"
 [profiles.openai.vector_store.extra_params]

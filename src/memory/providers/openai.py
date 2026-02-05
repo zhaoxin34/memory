@@ -64,10 +64,19 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         """
         super().__init__(config)
 
-        # Validate API key
+        # Get API key from environment variable
+        import os
+
         if not config.api_key:
             raise ProviderError(
-                message="OpenAI API key is required. Set it in config or OPENAI_API_KEY environment variable",
+                message="API key environment variable name is required",
+                provider="openai",
+            )
+
+        api_key = os.getenv(config.api_key)
+        if not api_key:
+            raise ProviderError(
+                message=f"Environment variable '{config.api_key}' not set or empty",
                 provider="openai",
             )
 
@@ -94,7 +103,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             from openai import AsyncOpenAI
 
             # Build client kwargs from config
-            client_kwargs = {"api_key": config.api_key}
+            client_kwargs = {"api_key": api_key}
             if config.extra_params:
                 client_kwargs.update(config.extra_params)
 

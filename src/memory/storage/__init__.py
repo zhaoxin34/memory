@@ -33,7 +33,7 @@ def create_vector_store(config: StorageConfig) -> VectorStore:
         store = create_vector_store(config)
         await store.initialize()
     """
-    storage_type = config.storage_type.lower()
+    storage_type = config.store_type.lower()
 
     if storage_type == "memory":
         from memory.storage.memory import InMemoryVectorStore
@@ -86,7 +86,7 @@ def create_metadata_store(config: StorageConfig) -> MetadataStore:
         store = create_metadata_store(config)
         await store.initialize()
     """
-    storage_type = config.storage_type.lower()
+    storage_type = config.store_type.lower()
 
     if storage_type == "memory":
         from memory.storage.memory import InMemoryMetadataStore

@@ -378,7 +378,7 @@ class ChromaVectorStore(VectorStore):
                             id=UUID(metadata["chunk_id"]),
                             document_id=UUID(metadata["document_id"]),
                             repository_id=UUID(metadata["repository_id"]),
-                            text=document_text,
+                            content=document_text,
                             chunk_index=metadata["chunk_index"],
                             start_char=metadata["start_char"],
                             end_char=metadata["end_char"],
