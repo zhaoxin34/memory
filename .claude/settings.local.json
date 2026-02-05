@@ -14,7 +14,8 @@
       "Skill(commit-commands:commit)",
       "Bash(sqlite3:*)",
       "Bash(echo:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Skill(claude-reflect:reflect)"
     ]
   },
   "enableAllProjectMcpServers": true,

@@ -155,6 +155,11 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
   - Repository CRUD: `add_repository()`, `get_repository()`, `get_repository_by_name()`, `list_repositories()`, `delete_repository()`
   - `list_documents()` 支持可选的 `repository_id` 参数进行过滤
 
+### 数据库迁移策略
+- **向后兼容性**: 添加新字段时使用`ALTER TABLE ADD COLUMN`，并检查字段是否已存在
+- **NULL值处理**: 新字段默认为NULL，在业务逻辑中优雅处理NULL值
+- **迁移时机**: 在应用启动时执行迁移，确保数据库结构与应用代码同步
+
 ### Pipelines Layer (`src/memory/pipelines/`)
 - `ingestion.py`: 文档导入管道
   - 协调文档存储、分块、嵌入生成和向量存储
@@ -162,6 +167,8 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
   - `__init__()` 接受可选的 `repository_id` 参数
   - `ingest_file()` 接受可选的 `repository_id` 参数（覆盖管道默认值）
   - 创建的 Document 和 Chunk 都会包含 repository_id
+  - **MD5智能覆盖**: 基于内容MD5值的智能检测，实现内容变化时自动覆盖，内容未变化时跳过处理
+  - **回滚机制**: 失败时自动回滚到原始文档状态，确保数据一致性
 - `query.py`: 查询管道
   - 语义搜索：生成查询向量 → 向量搜索 → 返回结果
   - LLM 问答：检索相关分块 → 构建上下文 → LLM 生成答案
@@ -230,10 +237,21 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
 - 日志级别通过配置控制
 - 关键操作（导入、查询）都有开始和完成日志
 
+### 用户体验设计
+- **友好提示信息**: 为不同操作场景提供清晰的状态反馈（"Ingested"、"Updated"、"Skipped"、"Re-imported"）
+- **时区感知显示**: 所有时间戳按用户本地时区显示，提升可读性
+- **进度反馈**: 长时间操作提供进度指示和状态更新
+- **错误处理**: 优雅处理异常情况，提供有意义的错误信息和恢复建议
+
 ### 类型安全
 - 所有数据模型使用 Pydantic 验证
 - 启用 mypy strict 模式
 - 所有函数都有类型提示
+
+### 时间处理最佳实践
+- **SQLite TEXT类型时间排序**: 使用ISO 8601格式（如"2026-02-05T22:48:25"）在SQLite中完美支持时间排序，字典序=时间序
+- **时区转换**: 在CLI显示层进行UTC到本地时区的转换，避免在数据库层面处理时区复杂性
+- **存储格式**: 数据库存储UTC时间的ISO 8601字符串，显示时转换为本地时区
 
 ## Testing Strategy
 
