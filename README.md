@@ -26,9 +26,6 @@ cd memory
 uv sync
 
 # 根据需要安装可选依赖
-# 本地嵌入模型（sentence-transformers）
-uv sync --extra local
-
 # OpenAI 嵌入和 LLM
 uv sync --extra openai
 
@@ -36,19 +33,12 @@ uv sync --extra openai
 uv sync --extra chroma
 
 # 完整安装（推荐）
-uv sync --extra local --extra openai --extra chroma
+uv sync --extra openai --extra chroma
 ```
 
 **依赖说明**:
-- `local`: 本地嵌入模型支持（sentence-transformers），适合离线使用或降低成本
 - `openai`: OpenAI API 支持，用于云端嵌入和 LLM
 - `chroma`: ChromaDB 持久化向量存储，生产环境推荐
-
-**中国用户加速**:
-如果下载 HuggingFace 模型较慢，可以使用镜像：
-```bash
-export HF_ENDPOINT=https://hf-mirror.com
-memory ingest /path/to/documents
 ```
 
 ### 基本使用
@@ -164,8 +154,8 @@ data_dir = "~/.memory"
 default_repository = "default"
 
 [embedding]
-provider = "local"
-model_name = "all-MiniLM-L6-v2"  # 轻量级，384 维
+provider = "openai"
+model_name = "text-embedding-ada-002"
 batch_size = 32
 
 [vector_store]
@@ -226,22 +216,6 @@ min_chunk_size = 100
 ```
 
 ### 嵌入提供者配置
-
-#### 本地嵌入（sentence-transformers）
-
-```toml
-[embedding]
-provider = "local"
-model_name = "all-MiniLM-L6-v2"  # 可选模型见下表
-batch_size = 32
-```
-
-**支持的模型**:
-| 模型名称 | 维度 | 大小 | 速度 | 质量 | 适用场景 |
-|---------|------|------|------|------|---------|
-| all-MiniLM-L6-v2 | 384 | 80MB | 快 | 中 | 快速原型、资源受限 |
-| all-mpnet-base-v2 | 768 | 420MB | 中 | 高 | 通用推荐 |
-| paraphrase-multilingual-MiniLM-L12-v2 | 384 | 420MB | 快 | 中 | 多语言支持 |
 
 #### OpenAI 嵌入
 

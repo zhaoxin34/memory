@@ -21,29 +21,14 @@ def create_embedding_provider(config: ProviderConfig) -> EmbeddingProvider:
 
     Example:
         config = ProviderConfig(
-            provider_type="local",
-            model_name="all-MiniLM-L6-v2"
+            provider_type="openai",
+            model_name="text-embedding-ada-002"
         )
         provider = create_embedding_provider(config)
     """
     provider_type = config.provider_type.lower()
 
-    if provider_type == "local":
-        try:
-            from memory.providers.local import LocalEmbeddingProvider
-
-            return LocalEmbeddingProvider(config)
-        except ImportError as e:
-            raise ProviderError(
-                message=(
-                    "Local embedding provider requires sentence-transformers. "
-                    "Install with: uv sync --extra local"
-                ),
-                provider="local",
-                original_error=e,
-            )
-
-    elif provider_type == "openai":
+    if provider_type == "openai":
         try:
             from memory.providers.openai import OpenAIEmbeddingProvider
 
@@ -61,7 +46,7 @@ def create_embedding_provider(config: ProviderConfig) -> EmbeddingProvider:
     else:
         raise ValueError(
             f"Unknown embedding provider type: '{provider_type}'. "
-            f"Supported types: local, openai"
+            f"Supported types: openai"
         )
 
 

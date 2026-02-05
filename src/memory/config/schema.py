@@ -34,7 +34,6 @@ class EmbeddingProviderType(str, Enum):
     """Supported embedding providers."""
 
     OPENAI = "openai"
-    LOCAL = "local"
     MOCK = "mock"
 
 
@@ -66,8 +65,8 @@ class MetadataStoreType(str, Enum):
 class EmbeddingConfig(BaseModel):
     """Embedding provider configuration."""
 
-    provider: EmbeddingProviderType = EmbeddingProviderType.LOCAL
-    model_name: str = "all-MiniLM-L6-v2"
+    provider: EmbeddingProviderType = EmbeddingProviderType.OPENAI
+    model_name: str = "text-embedding-ada-002"
     api_key: Optional[str] = None
     batch_size: int = Field(default=32, gt=0)
     extra_params: dict[str, Any] = Field(default_factory=dict)

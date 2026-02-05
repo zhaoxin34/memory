@@ -22,16 +22,12 @@ dependencies = [
     "structlog>=23.0.0",
     "python-dotenv>=1.0.0",
     "aiosqlite>=0.22.1",
-    "sentence-transformers>=5.2.2",
-    "torch>=2.10.0",
-    "transformers>=5.0.0",
     "httpx[socks]>=0.28.1",
 ]
 
 [project.optional-dependencies]
 # Embedding providers
 openai = ["openai>=1.0.0"]
-local = ["sentence-transformers>=2.0.0", "torch>=2.0.0"]
 
 # Vector stores
 chroma = ["chromadb>=0.4.0"]

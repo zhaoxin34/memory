@@ -10,7 +10,8 @@
       "Bash(sqlite3 ~/.memory/chroma/chroma.sqlite3 \"SELECT * FROM repositories;\")",
       "Bash(python:*)",
       "Bash(MEMORY_LOG_LEVEL=DEBUG uv run memory ingest:*)",
-      "Bash(python3 -m py_compile:*)"
+      "Bash(python3 -m py_compile:*)",
+      "Skill(commit-commands:commit)"
     ]
   },
   "enableAllProjectMcpServers": true,

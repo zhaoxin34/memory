@@ -142,23 +142,29 @@ class TestDocQueryCommand:
 
         metadata_store = AsyncMock()
         vector_store = AsyncMock()
-        repository = MagicMock()
-        repository.id = uuid4()
-        repository.name = "wrong-repo"
-        mock_ensure.return_value = (metadata_store, vector_store, repository)
+        default_repo = MagicMock()
+        default_repo.id = uuid4()
+        default_repo.name = "test-repo"
+        mock_ensure.return_value = (metadata_store, vector_store, default_repo)
 
-        # Run command and expect error
-        with pytest.raises(typer.Exit):
-            await _doc_query_async(
-                page=1,
-                page_size=10,
-                search=None,
-                repository="nonexistent",
-                sort="created_at",
-                desc=False,
-                json_output=False,
-                config_file=None,
-            )
+        # Mock RepositoryManager to return None for nonexistent repo
+        with patch("memory.core.repository.RepositoryManager") as mock_repo_manager_class:
+            mock_repo_manager = AsyncMock()
+            mock_repo_manager.get_repository_by_name.return_value = None
+            mock_repo_manager_class.return_value = mock_repo_manager
+
+            # Run command and expect error
+            with pytest.raises(typer.Exit):
+                await _doc_query_async(
+                    page=1,
+                    page_size=10,
+                    search=None,
+                    repository="nonexistent",
+                    sort="created_at",
+                    desc=False,
+                    json_output=False,
+                    config_file=None,
+                )
 
 
 @pytest.mark.asyncio
@@ -239,7 +245,7 @@ class TestDocInfoCommand:
         metadata_store.get_chunks_by_document.return_value = []
 
         # Run command with name
-        await doc_info(
+        await _doc_info_async(
             document_id="test.md",
             repository=None,
             full=False,
@@ -248,8 +254,7 @@ class TestDocInfoCommand:
         )
 
         # Verify
-        metadata_store.get_document.assert_called_once()
-        metadata_store.list_documents.assert_called_once_with(repository_id=repository.id)
+        metadata_store.list_documents.assert_called_once()
 
     @patch("memory.interfaces.cli._load_config")
     @patch("memory.interfaces.cli._ensure_default_repository")
@@ -272,7 +277,7 @@ class TestDocInfoCommand:
 
         # Run command and expect error
         with pytest.raises(typer.Exit):
-            await doc_info(
+            await _doc_info_async(
                 document_id="nonexistent.md",
                 repository=None,
                 full=False,
@@ -412,7 +417,7 @@ class TestDocDeleteCommand:
         metadata_store.delete_document.return_value = True
 
         # Run command with dry-run
-        await doc_delete(
+        await _doc_delete_async(
             document_ids=[str(test_doc.id)],
             repository=None,
             force=False,

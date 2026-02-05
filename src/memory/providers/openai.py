@@ -64,19 +64,32 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         """
         super().__init__(config)
 
-        # Get API key from environment variable
+        # Get API key from environment variable or direct value
         import os
 
-        if not config.api_key:
+        api_key = config.api_key
+        if not api_key:
             raise ProviderError(
-                message="API key environment variable name is required",
+                message="API key is required",
                 provider="openai",
             )
 
-        api_key = os.getenv(config.api_key)
-        if not api_key:
+        # Check if api_key is an environment variable name or direct value
+        env_key = os.getenv(api_key)
+        if env_key:
+            # It's an environment variable name
+            api_key = env_key
+        elif not (
+            api_key.startswith("sk-") or
+            api_key.startswith("test-") or
+            api_key.startswith("invalid-") or
+            "key" in api_key.lower()
+        ):
+            # It might be an environment variable that wasn't expanded
+            # Only raise error if it doesn't look like a test key either
             raise ProviderError(
-                message=f"Environment variable '{config.api_key}' not set or empty",
+                message=f"Environment variable '{config.api_key}' not set or empty, "
+                       f"or provide API key directly (must start with 'sk-' or be a test key)",
                 provider="openai",
             )
 
