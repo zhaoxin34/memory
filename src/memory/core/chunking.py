@@ -96,7 +96,7 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     """Create chunks from a document.
 
     Uses specialized chunking strategies based on document type:
-    - Markdown documents: Uses semantic chunking that preserves structure
+    - Markdown documents: Uses tree-sitter semantic chunking (falls back to regex-based)
     - Other documents: Uses fixed-size chunking with overlap
 
     Args:
@@ -106,18 +106,49 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     Returns:
         List of chunks
     """
-    # Use Markdown-aware chunking for Markdown documents
+    # Use tree-sitter based chunking for Markdown documents (preferred)
     if document.doc_type == DocumentType.MARKDOWN:
+        # Try tree-sitter chunking first
         try:
-            from memory.core.markdown_chunking import chunk_markdown_document
-            return chunk_markdown_document(document, config)
-        except ImportError as e:
+            from memory.core.tree_sitter_chunking import tree_sitter_chunk_document
+            chunks = tree_sitter_chunk_document(document, config)
+            if chunks:
+                logger.info(
+                    "document_chunked_with_tree_sitter",
+                    document_id=str(document.id),
+                    document_type=document.doc_type.value,
+                    chunk_count=len(chunks),
+                    avg_chunk_size=sum(len(c.content) for c in chunks) // len(chunks) if chunks else 0,
+                )
+                return chunks
+        except ImportError:
+            logger.debug("tree_sitter_not_available_using_fallback")
+        except Exception as e:
             logger.warning(
-                "markdown_chunking_fallback",
+                "tree_sitter_chunking_failed",
                 document_id=str(document.id),
                 error=str(e),
             )
-            # Fallback to regular chunking
+
+        # Fallback to regex-based markdown chunking
+        try:
+            from memory.core.markdown_chunking import chunk_markdown_document
+            chunks = chunk_markdown_document(document, config)
+            if chunks:
+                logger.info(
+                    "document_chunked_with_regex",
+                    document_id=str(document.id),
+                    document_type=document.doc_type.value,
+                    chunk_count=len(chunks),
+                    avg_chunk_size=sum(len(c.content) for c in chunks) // len(chunks) if chunks else 0,
+                )
+                return chunks
+        except ImportError as e:
+            logger.debug(
+                "markdown_chunking_fallback_failed",
+                document_id=str(document.id),
+                error=str(e),
+            )
 
     # Default: Use fixed-size chunking for non-Markdown documents
     chunks = []

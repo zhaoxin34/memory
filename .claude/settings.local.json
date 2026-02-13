@@ -15,7 +15,12 @@
       "Bash(sqlite3:*)",
       "Bash(echo:*)",
       "Bash(python3:*)",
-      "Skill(claude-reflect:reflect)"
+      "Skill(claude-reflect:reflect)",
+      "WebSearch",
+      "WebFetch(domain:docs.llamaindex.ai)",
+      "mcp__google-search__search",
+      "WebFetch(domain:docling-project.github.io)",
+      "WebFetch(domain:github.com)"
     ]
   },
   "enableAllProjectMcpServers": true,

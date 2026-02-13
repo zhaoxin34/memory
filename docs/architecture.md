@@ -157,6 +157,43 @@ Query → QueryPipeline → EmbeddingProvider → Query Vector
 2. Add configuration options to `ChunkingConfig`
 3. Update `create_chunks()` to use new strategy
 
+### Tree-sitter Markdown Chunking
+
+Memory supports advanced Markdown chunking using tree-sitter for accurate syntax tree parsing.
+
+**Features:**
+- Semantic-aware chunking based on syntax tree structure
+- Proper handling of tables, nested lists, blockquotes, and code blocks
+- Heading context preservation across chunks
+- Fallback to regex-based chunking when tree-sitter is unavailable
+
+**Dependencies:**
+```bash
+uv sync --extra tree-sitter
+```
+
+**Configuration:**
+```toml
+[chunking]
+# Target size of each chunk in characters (default: 1000)
+chunk_size = 1000
+# Overlap between chunks to preserve context (default: 200)
+chunk_overlap = 200
+# Minimum chunk size, smaller chunks are filtered (default: 100)
+min_chunk_size = 100
+```
+
+**How it works:**
+1. Parse Markdown into tree-sitter syntax tree
+2. Extract semantic nodes (headings, paragraphs, tables, lists, code blocks)
+3. Merge nodes into target-sized chunks while preserving semantic boundaries
+4. Add heading context to maintain document structure
+
+**Fallback order:**
+1. Tree-sitter chunking (preferred)
+2. Regex-based Markdown chunking (fallback)
+3. Fixed-size chunking (last resort)
+
 ### Adding Observability
 
 1. Add metrics collection in `observability/`

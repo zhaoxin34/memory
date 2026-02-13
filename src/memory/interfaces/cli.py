@@ -17,6 +17,7 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskProgressColumn
 from rich.table import Table
 
 from memory.config.loader import get_default_config_path, load_config
@@ -159,21 +160,112 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
             console.print(f"[yellow]No files found to ingest[/yellow]")
             return
 
-        console.print(f"[cyan]Ingesting {len(files_to_ingest)} file(s) into repository '{repo_name}'...[/cyan]")
+        total_files = len(files_to_ingest)
+        console.print(f"[cyan]Ingesting {total_files} file(s) into repository '{repo_name}'...[/cyan]")
 
         # Ingest each file
         success_count = 0
         error_count = 0
         overwrite_count = 0
 
-        for file_path in files_to_ingest:
+        # Use progress bar for multiple files
+        if total_files > 1:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console,
+            ) as progress:
+                main_task = progress.add_task(
+                    f"Processing {total_files} files...",
+                    total=total_files,
+                )
+
+                for file_path in files_to_ingest:
+                    progress.update(main_task, description=f"Processing: {file_path.name}")
+
+                    try:
+                        # Read file content
+                        content = file_path.read_text(encoding="utf-8")
+
+                        # Inject filename as heading into content for better embedding
+                        filename_title = file_path.stem
+                        file_ext = file_path.suffix.lower()
+
+                        # Detect document type and inject filename as heading
+                        if file_ext in (".md", ".markdown"):
+                            # For markdown files, check if it already has a heading
+                            if not content.lstrip().startswith("#"):
+                                content = f"# {filename_title}\n\n{content}"
+                            doc_type = DocumentType.MARKDOWN
+                        else:
+                            # For other text files, prepend as first line
+                            content = f"# {filename_title}\n\n{content}"
+                            doc_type = DocumentType.TEXT
+
+                        # Calculate MD5 hash of content (after injection)
+                        import hashlib
+                        content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
+
+                        # Create document object
+                        from memory.core.models import Document, DocumentType
+
+                        document = Document(
+                            repository_id=repo.id,
+                            source_path=str(file_path),
+                            doc_type=doc_type,
+                            title=filename_title,
+                            content=content,
+                            content_md5=content_md5,
+                            metadata={"file_size": file_path.stat().st_size},
+                        )
+
+                        # Ingest document
+                        result = await pipeline.ingest_document(document, force=force)
+
+                        # Check if document was actually updated
+                        if result.updated or result.reason == "new_document":
+                            if result.reason == "content_changed":
+                                overwrite_count += 1
+                            elif result.reason == "forced":
+                                overwrite_count += 1
+                            success_count += 1
+                        # Skipped documents don't increment success_count
+
+                    except UnicodeDecodeError:
+                        error_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        logger.error("ingestion_error", file=str(file_path), error=str(e))
+
+                    progress.advance(main_task)
+
+        else:
+            # Single file - keep it simple
+            file_path = files_to_ingest[0]
             try:
                 console.print(f"  Processing: {file_path}")
 
                 # Read file content
                 content = file_path.read_text(encoding="utf-8")
 
-                # Calculate MD5 hash of content
+                # Inject filename as heading into content for better embedding
+                filename_title = file_path.stem
+                file_ext = file_path.suffix.lower()
+
+                # Detect document type and inject filename as heading
+                if file_ext in (".md", ".markdown"):
+                    # For markdown files, check if it already has a heading
+                    if not content.lstrip().startswith("#"):
+                        content = f"# {filename_title}\n\n{content}"
+                    doc_type = DocumentType.MARKDOWN
+                else:
+                    # For other text files, prepend as first line
+                    content = f"# {filename_title}\n\n{content}"
+                    doc_type = DocumentType.TEXT
+
+                # Calculate MD5 hash of content (after injection)
                 import hashlib
                 content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
 
@@ -183,8 +275,8 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
                 document = Document(
                     repository_id=repo.id,
                     source_path=str(file_path),
-                    doc_type=DocumentType.TEXT,
-                    title=file_path.stem,
+                    doc_type=doc_type,
+                    title=filename_title,
                     content=content,
                     content_md5=content_md5,
                     metadata={"file_size": file_path.stat().st_size},
@@ -198,16 +290,19 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
                     if result.reason == "content_changed":
                         console.print(f"  [green]✓[/green] Updated (content changed): {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
                         overwrite_count += 1
+                        success_count += 1
                     elif result.reason == "forced":
                         console.print(f"  [green]✓[/green] Re-imported (forced): {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
                         overwrite_count += 1
+                        success_count += 1
                     elif result.reason == "new_document":
                         console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
+                        success_count += 1
                     else:
                         console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
+                        success_count += 1
                 else:
                     console.print(f"  [dim]→[/dim] Skipped (content unchanged): {file_path.name}")
-                success_count += 1
 
             except UnicodeDecodeError:
                 console.print(f"  [yellow]⚠[/yellow] Skipped (not a text file): {file_path.name}")
