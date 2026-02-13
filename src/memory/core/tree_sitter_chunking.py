@@ -29,11 +29,13 @@ def _check_tree_sitter_available() -> bool:
         return False
 
 
-def _get_tree_sitter_language() -> Optional[str]:
-    """Get the tree-sitter language module for markdown."""
+def _get_tree_sitter_language():
+    """Get the tree-sitter language object for markdown."""
     try:
+        import tree_sitter
         import tree_sitter_markdown
-        return tree_sitter_markdown.language()
+        # Create Language object from PyCapsule
+        return tree_sitter.Language(tree_sitter_markdown.language())
     except ImportError:
         return None
 
@@ -115,8 +117,9 @@ def parse_markdown_syntax_tree(text: str) -> Optional[SemanticNode]:
         class ParsingTimeoutError(Exception):
             pass
 
+        # Create parser with markdown language
         parser = tree_sitter.Parser()
-        parser.set_language(language)
+        parser.language = language
 
         # Parse with timeout protection (5 seconds)
         def timeout_handler(signum, frame):
@@ -127,12 +130,13 @@ def parse_markdown_syntax_tree(text: str) -> Optional[SemanticNode]:
         signal.alarm(5)  # 5 second timeout
 
         try:
-            tree = parser.parse(text.encode("utf-8"))
+            text_bytes = text.encode("utf-8")
+            tree = parser.parse(text_bytes)
         finally:
             signal.alarm(0)  # Cancel alarm
 
         # Convert to semantic nodes
-        root = _tree_to_semantic_node(tree.root_node, text)
+        root = _tree_to_semantic_node(tree.root_node, text, text_bytes)
         return root
 
     except ImportError as e:
@@ -152,12 +156,20 @@ def parse_markdown_syntax_tree(text: str) -> Optional[SemanticNode]:
         return None
 
 
-def _tree_to_semantic_node(node, text: str) -> SemanticNode:
+def _tree_to_semantic_node(node, text: str, text_bytes: bytes = None) -> SemanticNode:
     """Convert a tree-sitter node to a SemanticNode."""
     node_type = node.type
-    content = text[node.start_byte : node.end_byte].decode("utf-8") if node.start_byte < node.end_byte else ""
+
+    # Use bytes for slicing (tree-sitter uses byte offsets)
+    if text_bytes is None:
+        text_bytes = text.encode("utf-8")
+    content = text_bytes[node.start_byte : node.end_byte].decode("utf-8") if node.start_byte < node.end_byte else ""
 
     children = []
+    for child in node.children:
+        if child.type not in ("ERROR", "WHITESPACE"):
+            child_node = _tree_to_semantic_node(child, text, text_bytes)
+            children.append(child_node)
     for child in node.children:
         if child.type not in ("ERROR", "WHITESPACE"):
             child_node = _tree_to_semantic_node(child, text)

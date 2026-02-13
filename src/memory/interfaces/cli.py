@@ -12,6 +12,9 @@ Commands:
 
 import asyncio
 import datetime as dt
+import json
+import re
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +25,7 @@ from rich.table import Table
 
 from memory.config.loader import get_default_config_path, load_config
 from memory.config.schema import AppConfig
+from memory.core.models import SearchResult
 from memory.observability.logging import configure_logging, get_logger
 
 app = typer.Typer(
@@ -32,6 +36,107 @@ app = typer.Typer(
 
 console = Console()
 logger = get_logger(__name__)
+
+
+class OutputFormat(str, Enum):
+    """Output format options for search results."""
+
+    TEXT = "text"
+    JSON = "json"
+    MARKDOWN = "markdown"
+
+
+def render_search_results_json(results: list[SearchResult], query: str) -> str:
+    """Render search results as JSON.
+
+    Args:
+        results: List of search results
+        query: The search query
+
+    Returns:
+        JSON formatted string
+    """
+    output = {
+        "query": query,
+        "total_results": len(results),
+        "results": [
+            {
+                "score": result.score,
+                "document_id": str(result.chunk.document_id),
+                "document_title": result.document.title if result.document else None,
+                "chunk_index": result.chunk.chunk_index,
+                "content": result.chunk.content,
+                "source_path": result.document.source_path if result.document else None,
+            }
+            for result in results
+        ],
+    }
+    return json.dumps(output, ensure_ascii=False, indent=2)
+
+
+def render_search_results_markdown(results: list[SearchResult], query: str) -> str:
+    """Render search results as Markdown table.
+
+    Args:
+        results: List of search results
+        query: The search query
+
+    Returns:
+        Markdown formatted string
+    """
+    lines = [
+        "## Search Results",
+        "",
+        f"**Query:** {query}",
+        f"**Total:** {len(results)} result(s)",
+        "",
+        "| # | Score | Document | Content |",
+        "|---|-------|----------|---------|",
+    ]
+
+    for i, result in enumerate(results, 1):
+        doc_title = result.document.title if result.document else "Unknown"
+        content = result.chunk.content[:100].replace("\n", " ")
+        if len(result.chunk.content) > 100:
+            content += "..."
+        lines.append(f"| {i} | {result.score:.4f} | {doc_title} | {content} |")
+
+    lines.extend(["", "## Sources", ""])
+
+    for i, result in enumerate(results, 1):
+        if result.document:
+            source_path = result.document.source_path or ""
+            lines.append(f"{i}. [{source_path}](#{source_path})")
+
+    return "\n".join(lines)
+
+
+def render_search_results_text(results: list[SearchResult], query: str) -> str:
+    """Render search results as plain text.
+
+    Args:
+        results: List of search results
+        query: The search query
+
+    Returns:
+        Plain text formatted string
+    """
+    if not results:
+        return "No results found"
+
+    lines = [f"Search Results for: {query}", f"Total: {len(results)} result(s)", ""]
+
+    for i, result in enumerate(results, 1):
+        doc_title = result.document.title if result.document else "Unknown"
+        content = result.chunk.content[:200].replace("\n", " ")
+        if len(result.chunk.content) > 200:
+            content += "..."
+        lines.append(f"{i}. Score: {result.score:.4f}")
+        lines.append(f"   Document: {doc_title}")
+        lines.append(f"   Content: {content}")
+        lines.append("")
+
+    return "\n".join(lines)
 
 
 async def _ensure_default_repository(config: AppConfig):
@@ -77,13 +182,17 @@ def ingest(
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest directory"),
     repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing documents with the same source path"),
+    include: Optional[str] = typer.Option(None, "--include", "-i", help="Regex pattern to filter files (e.g., '.*\\.md' for markdown files)"),
 ):
     """Ingest documents into the knowledge base."""
-    asyncio.run(_ingest_async(path, config_file, recursive, repository, force))
+    asyncio.run(_ingest_async(path, config_file, recursive, repository, force, include))
 
 
-async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool, repository: Optional[str], force: bool):
+async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool, repository: Optional[str], force: bool, include: Optional[str] = None):
     """Async implementation of ingest command."""
+    # Import DocumentType at function level to avoid scope issues
+    from memory.core.models import Document, DocumentType
+
     # Load configuration
     config = _load_config(config_file)
 
@@ -139,29 +248,50 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
         # Collect files to ingest
         files_to_ingest = []
 
+        # Compile regex pattern if provided
+        include_pattern = None
+        if include:
+            try:
+                include_pattern = re.compile(include)
+            except re.error as e:
+                console.print(f"[red]Invalid regex pattern: {include}[/red]")
+                return
+
+        def match_pattern(file_path: Path) -> bool:
+            """Check if file matches the include pattern."""
+            if include_pattern is None:
+                return True
+            # Match against the full path and the filename
+            return bool(include_pattern.match(str(file_path))) or bool(include_pattern.match(file_path.name))
+
         if path.is_file():
-            files_to_ingest.append(path)
+            if match_pattern(path):
+                files_to_ingest.append(path)
         elif path.is_dir():
             if recursive:
                 # Recursively find all files
                 for file_path in path.rglob("*"):
-                    if file_path.is_file():
+                    if file_path.is_file() and match_pattern(file_path):
                         files_to_ingest.append(file_path)
             else:
                 # Only files in the directory
                 for file_path in path.iterdir():
-                    if file_path.is_file():
+                    if file_path.is_file() and match_pattern(file_path):
                         files_to_ingest.append(file_path)
         else:
             console.print(f"[red]Path not found: {path}[/red]")
             return
 
         if not files_to_ingest:
-            console.print(f"[yellow]No files found to ingest[/yellow]")
+            if include:
+                console.print(f"[yellow]No files found matching pattern '{include}'[/yellow]")
+            else:
+                console.print(f"[yellow]No files found to ingest[/yellow]")
             return
 
         total_files = len(files_to_ingest)
-        console.print(f"[cyan]Ingesting {total_files} file(s) into repository '{repo_name}'...[/cyan]")
+        pattern_msg = f" (matching '{include}')" if include else ""
+        console.print(f"[cyan]Ingesting {total_files} file(s) into repository '{repo_name}'{pattern_msg}...[/cyan]")
 
         # Ingest each file
         success_count = 0
@@ -209,8 +339,6 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
                         content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
 
                         # Create document object
-                        from memory.core.models import Document, DocumentType
-
                         document = Document(
                             repository_id=repo.id,
                             source_path=str(file_path),
@@ -270,8 +398,6 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
                 content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
 
                 # Create document object
-                from memory.core.models import Document, DocumentType
-
                 document = Document(
                     repository_id=repo.id,
                     source_path=str(file_path),
@@ -335,14 +461,28 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
 def search(
     query: str = typer.Argument(..., help="Search query"),
     top_k: int = typer.Option(10, "--top-k", "-k", help="Number of results"),
+    output: OutputFormat = typer.Option(
+        OutputFormat.TEXT,
+        "--output",
+        "-o",
+        help="Output format: text, json, or markdown",
+    ),
+    no_content: bool = typer.Option(False, "--no-content", help="Don't show chunk content in text output"),
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
     repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
 ):
     """Perform semantic search."""
-    asyncio.run(_search_async(query, top_k, config_file, repository))
+    asyncio.run(_search_async(query, top_k, config_file, repository, output, no_content))
 
 
-async def _search_async(query: str, top_k: int, config_file: Optional[Path], repository: Optional[str]):
+async def _search_async(
+    query: str,
+    top_k: int,
+    config_file: Optional[Path],
+    repository: Optional[str],
+    output: OutputFormat = OutputFormat.TEXT,
+    no_content: bool = False,
+):
     """Async implementation of search command."""
     config = _load_config(config_file)
 
@@ -379,9 +519,11 @@ async def _search_async(query: str, top_k: int, config_file: Optional[Path], rep
                 extra_params=config.embedding.extra_params,
             )
 
-            console.print(f"[cyan]Initializing embedding provider: {config.embedding.provider.value}...[/cyan]")
+            if output != OutputFormat.JSON:
+                console.print(f"[cyan]Initializing embedding provider: {config.embedding.provider.value}...[/cyan]")
             embedding_provider = create_embedding_provider(provider_config)
-            console.print(f"[green]✓ Embedding provider ready[/green]")
+            if output != OutputFormat.JSON:
+                console.print(f"[green]✓ Embedding provider ready[/green]")
 
         except Exception as e:
             console.print(f"[red]Error creating embedding provider: {str(e)}[/red]")
@@ -389,31 +531,47 @@ async def _search_async(query: str, top_k: int, config_file: Optional[Path], rep
 
         # Perform search directly using vector store
         try:
-            console.print(f"[cyan]Searching in repository '{repo_name}'...[/cyan]")
+            if output != OutputFormat.JSON:
+                console.print(f"[cyan]Searching in repository '{repo_name}'...[/cyan]")
 
             # Generate query embedding
-            console.print("  Generating query embedding...")
+            if output != OutputFormat.JSON:
+                console.print("  Generating query embedding...")
             query_vector = await embedding_provider.embed_text(query)
-            console.print(f"  ✓ Embedding generated (dimension: {len(query_vector)})")
+            if output != OutputFormat.JSON:
+                console.print(f"  ✓ Embedding generated (dimension: {len(query_vector)})")
 
             # Search in vector store
-            console.print("  Searching...")
+            if output != OutputFormat.JSON:
+                console.print("  Searching...")
             results = await vector_store.search(
                 query_vector=query_vector,
                 top_k=top_k,
                 repository_id=repo.id,
             )
 
-            if not results:
-                console.print("[yellow]No results found[/yellow]")
-            else:
-                console.print(f"\n[green]Found {len(results)} result(s):[/green]\n")
+            # Enrich results with document metadata
+            for result in results:
+                document = await metadata_store.get_document(result.chunk.document_id)
+                result.document = document
 
-                for i, result in enumerate(results, 1):
-                    console.print(f"[bold cyan]{i}. Score: {result.score:.4f}[/bold cyan]")
-                    console.print(f"   Document ID: {result.chunk.document_id}")
-                    console.print(f"   Chunk: {result.chunk.content[:200]}...")
-                    console.print()
+            # Render output based on format
+            if output == OutputFormat.JSON:
+                print(render_search_results_json(results, query))
+            elif output == OutputFormat.MARKDOWN:
+                print(render_search_results_markdown(results, query))
+            else:
+                if not results:
+                    console.print("[yellow]No results found[/yellow]")
+                else:
+                    console.print(f"\n[green]Found {len(results)} result(s):[/green]\n")
+                    for i, result in enumerate(results, 1):
+                        doc_title = result.document.title if result.document else "Unknown"
+                        console.print(f"[bold cyan]{i}. Score: {result.score:.4f}[/bold cyan]")
+                        console.print(f"   Document: {doc_title}")
+                        if not no_content:
+                            console.print(f"   Chunk: {result.chunk.content[:200]}...")
+                        console.print()
 
         except Exception as e:
             console.print(f"[red]Search error: {str(e)}[/red]")
