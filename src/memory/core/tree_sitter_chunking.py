@@ -10,8 +10,10 @@ tree-sitter for accurate syntax tree parsing, supporting:
 - Semantic boundary preservation
 """
 
-from typing import Iterator, Optional
+import re
+import signal
 from pathlib import Path
+from typing import Iterator, Optional
 
 from memory.config.schema import ChunkingConfig
 from memory.core.models import Chunk, Document
@@ -111,7 +113,6 @@ def parse_markdown_syntax_tree(text: str) -> Optional[SemanticNode]:
 
     try:
         import tree_sitter
-        import signal
 
         # Define timeout exception
         class ParsingTimeoutError(Exception):
@@ -169,10 +170,6 @@ def _tree_to_semantic_node(node, text: str, text_bytes: bytes = None) -> Semanti
     for child in node.children:
         if child.type not in ("ERROR", "WHITESPACE"):
             child_node = _tree_to_semantic_node(child, text, text_bytes)
-            children.append(child_node)
-    for child in node.children:
-        if child.type not in ("ERROR", "WHITESPACE"):
-            child_node = _tree_to_semantic_node(child, text)
             children.append(child_node)
 
     # Extract metadata based on node type
@@ -341,28 +338,19 @@ def _extract_blockquote_node(node: SemanticNode, context: list[dict]) -> Semanti
 
 def _extract_list_item_node(node: SemanticNode, context: list[dict]) -> SemanticNode:
     """Extract a list item with its content."""
-    # Get the item marker (bullet or number)
-    marker = ""
+    content_parts: list[str] = []
+
     for child in node.children:
         if child.node_type in ("bullet_list_marker", "ordered_list_marker"):
-            marker = child.content
-            break
-
-    # Extract paragraph content after the marker
-    content_parts = [marker]
-    for child in node.children:
-        if child.node_type == "paragraph":
+            content_parts.append(child.content)
+        elif child.node_type == "paragraph":
             content_parts.append(child.content)
         elif child.node_type in ("bullet_list", "ordered_list"):
-            # Handle nested lists
-            nested = _extract_list_content(child)
-            content_parts.append(nested)
-
-    content = "\n".join(content_parts)
+            content_parts.append(_extract_list_content(child))
 
     return SemanticNode(
         node_type="list_item",
-        content=content,
+        content="\n".join(content_parts),
         start_byte=node.start_byte,
         end_byte=node.end_byte,
         metadata={
@@ -377,23 +365,22 @@ def _extract_list_content(node: SemanticNode) -> str:
     lines: list[str] = []
 
     for child in node.children:
-        if child.node_type == "list_item":
-            # Get marker
-            marker = ""
-            for subchild in child.children:
-                if "marker" in subchild.node_type:
-                    marker = subchild.content
-                    break
+        if child.node_type != "list_item":
+            continue
 
-            # Get content
-            item_content = ""
-            for subchild in child.children:
-                if subchild.node_type == "paragraph":
-                    item_content = subchild.content
-                elif "list" in subchild.node_type:
-                    item_content += "\n" + _extract_list_content(subchild)
+        # Extract marker and content in a single pass
+        marker = ""
+        item_parts: list[str] = []
 
-            lines.append(f"{marker} {item_content}")
+        for subchild in child.children:
+            if "marker" in subchild.node_type:
+                marker = subchild.content
+            elif subchild.node_type == "paragraph":
+                item_parts.append(subchild.content)
+            elif "list" in subchild.node_type:
+                item_parts.append(_extract_list_content(subchild))
+
+        lines.append(f"{marker} {' '.join(item_parts)}")
 
     return "\n".join(lines)
 
@@ -447,11 +434,10 @@ def merge_to_target_size(
     if not nodes:
         return []
 
+    use_overlap = overlap > 0
     chunks: list[str] = []
     current_chunk: list[str] = []
     current_size = 0
-
-    # For overlap - store heading context from last chunk
     last_chunk_context: list[dict] | None = None
 
     for node in nodes:
@@ -468,31 +454,27 @@ def merge_to_target_size(
 
         if new_size > target_size and current_chunk:
             # Save current chunk
-            chunk_text = "\n\n".join(current_chunk)
-            chunks.append(chunk_text)
+            chunks.append("\n\n".join(current_chunk))
 
             # Prepare overlap for next chunk
-            if overlap > 0 and current_chunk:
+            if use_overlap:
                 last_chunk_context = _extract_context_from_chunk(current_chunk[-1])
 
-            # Start new chunk
+            # Start new chunk with overlap if available
             current_chunk = []
             current_size = 0
 
-            # Add overlap text if available
-            if overlap > 0 and last_chunk_context:
-                # Add heading context from previous chunk
+            if use_overlap and last_chunk_context:
                 overlap_text = _build_overlap_text(last_chunk_context)
                 if len(overlap_text) < overlap:
                     current_chunk.append(overlap_text)
                     current_size = len(overlap_text)
 
         # Add node to current chunk
-        if current_chunk:
-            current_chunk.append(node_text)
+        current_chunk.append(node_text)
+        if len(current_chunk) > 1:
             current_size += separator_size + node_size
         else:
-            current_chunk.append(node_text)
             current_size = node_size
 
     # Add final chunk
@@ -513,8 +495,7 @@ def merge_to_target_size(
 def _extract_context_from_chunk(chunk_text: str) -> list[dict]:
     """Extract heading context from a chunk."""
     context: list[dict] = []
-    lines = chunk_text.split("\n")
-    for line in lines:
+    for line in chunk_text.split("\n"):
         stripped = line.strip()
         if stripped.startswith("#"):
             level = len(stripped) - len(stripped.lstrip("#"))
@@ -637,9 +618,5 @@ def _find_position(doc_content: str, chunk_text: str) -> int:
 
 def _is_ordered_list(text: str) -> bool:
     """Check if text is an ordered list."""
-    import re
-    lines = text.strip().split("\n")
-    if not lines:
-        return False
-    first_line = lines[0].strip()
+    first_line = text.strip().split("\n", 1)[0].strip()
     return bool(re.match(r"^\d+\.\s+", first_line))
