@@ -20,7 +20,9 @@
       "WebFetch(domain:docs.llamaindex.ai)",
       "mcp__google-search__search",
       "WebFetch(domain:docling-project.github.io)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(uv run python -c:*)",
+      "mcp__plugin_claude-mem_mcp-search__search"
     ]
   },
   "enableAllProjectMcpServers": true,
