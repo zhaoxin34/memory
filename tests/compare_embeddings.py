@@ -9,8 +9,8 @@ from memory.providers import create_embedding_provider
 from memory.providers.base import ProviderConfig
 from memory.storage import create_metadata_store, create_vector_store
 
-# Correct path to config
-CONFIG_PATH = Path("/Volumes/data/working/life/memory/config.toml")
+# Use relative path to config
+CONFIG_PATH = Path(__file__).parent.parent / "config.toml"
 
 TEST_CASES = [
     ("如何用async await写异步代码", ["python-async"]),
