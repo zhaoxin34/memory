@@ -58,8 +58,8 @@ class QueryPipeline:
         self,
         query: str,
         top_k: int = 10,
-        filters: Optional[dict] = None,
-        repository_id: Optional[UUID] = None,
+        filters: dict | None = None,
+        repository_id: UUID | None = None,
     ) -> list[SearchResult]:
         """Perform semantic search.
 
@@ -99,7 +99,7 @@ class QueryPipeline:
         query: str,
         top_k: int = 5,
         max_context_length: int = 3000,
-        repository_id: Optional[UUID] = None,
+        repository_id: UUID | None = None,
     ) -> tuple[str, list[SearchResult]]:
         """Answer a question using retrieved context.
 

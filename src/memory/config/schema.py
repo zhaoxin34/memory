@@ -14,7 +14,7 @@ How to extend:
 
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,7 +68,7 @@ class EmbeddingConfig(BaseModel):
 
     provider: EmbeddingProviderType = EmbeddingProviderType.OPENAI
     model_name: str = "text-embedding-ada-002"
-    api_key: Optional[str] = None
+    api_key: str | None = None
     batch_size: int = Field(default=32, gt=0)
     extra_params: dict[str, Any] = Field(default_factory=dict)
 
@@ -78,7 +78,7 @@ class LLMConfig(BaseModel):
 
     provider: LLMProviderType = LLMProviderType.OPENAI
     model_name: str = "gpt-4"
-    api_key: Optional[str] = None
+    api_key: str | None = None
     max_tokens: int = Field(default=2000, gt=0)
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     extra_params: dict[str, Any] = Field(default_factory=dict)
@@ -88,9 +88,9 @@ class VectorStoreConfig(BaseModel):
     """Vector store configuration."""
 
     store_type: VectorStoreType = VectorStoreType.CHROMA
-    connection_string: Optional[str] = None
+    connection_string: str | None = None
     collection_name: str = "memory"
-    persist_directory: Optional[Path] = None
+    persist_directory: Path | None = None
     extra_params: dict[str, Any] = Field(default_factory=dict)
 
     def model_post_init(self, __context: Any) -> None:

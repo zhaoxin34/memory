@@ -7,7 +7,6 @@ Provides high-level operations for managing repositories including:
 - Ensuring default repository exists
 """
 
-from typing import Optional
 from uuid import UUID
 
 from memory.core.models import Repository
@@ -37,8 +36,8 @@ class RepositoryManager:
     async def create_repository(
         self,
         name: str,
-        description: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        description: str | None = None,
+        metadata: dict | None = None,
     ) -> Repository:
         """Create a new repository.
 
@@ -77,7 +76,7 @@ class RepositoryManager:
 
         return repository
 
-    async def get_repository(self, repository_id: UUID) -> Optional[Repository]:
+    async def get_repository(self, repository_id: UUID) -> Repository | None:
         """Retrieve a repository by ID.
 
         Args:
@@ -88,7 +87,7 @@ class RepositoryManager:
         """
         return await self.metadata_store.get_repository(repository_id)
 
-    async def get_repository_by_name(self, name: str) -> Optional[Repository]:
+    async def get_repository_by_name(self, name: str) -> Repository | None:
         """Retrieve a repository by name.
 
         Args:

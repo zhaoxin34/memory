@@ -76,7 +76,6 @@ def parse_markdown_sections(text: str) -> list[MarkdownChunk]:
                 in_code_block = True
                 current_type = "code"
                 current_level = 0
-                code_fence = line.strip()
             else:
                 # End of code block
                 current_chunk.append(line)
@@ -85,7 +84,6 @@ def parse_markdown_sections(text: str) -> list[MarkdownChunk]:
                 in_code_block = False
                 current_type = "content"
                 current_level = 0
-                code_fence = None
             continue
 
         if in_code_block:

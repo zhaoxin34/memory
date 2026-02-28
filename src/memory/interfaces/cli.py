@@ -11,19 +11,21 @@ Commands:
 """
 
 import asyncio
+import atexit
 import datetime as dt
 import json
 import re
 import sys
 import time
+from collections.abc import Callable
 from enum import Enum
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 import typer
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TaskProgressColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 from rich.table import Table
 
 from memory.config.loader import get_default_config_path, load_config
@@ -31,7 +33,6 @@ from memory.config.schema import AppConfig
 from memory.core.models import SearchResult
 from memory.observability.logging import (
     configure_from_config,
-    configure_logging,
     get_audit_logger,
     get_logger,
 )
@@ -46,7 +47,7 @@ console = Console()
 logger = get_logger(__name__)
 
 # Global config (loaded lazily)
-_config: Optional[AppConfig] = None
+_config: AppConfig | None = None
 
 # Audit state
 _audit_state: dict = {}
@@ -118,50 +119,20 @@ def _audit_atexit() -> None:
     _record_audit_end(0)
 
 
-import atexit
 atexit.register(_audit_atexit)
 
 
 def audit_hook(func):
     """Decorator to add audit logging to Typer commands."""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        # Get command name from function
-        command_name = func.__name__.replace("_async", "")
-
-        # Get args from kwargs or sys.argv
-        cmd_args = []
-        for k, v in kwargs.items():
-            if k in ("config_file",):
-                continue
-            if isinstance(v, bool):
-                if v:
-                    cmd_args.append(f"--{k}")
-            elif isinstance(v, (str, int, float)):
-                cmd_args.append(f"--{k}")
-                cmd_args.append(str(v))
-            elif v is not None:
-                cmd_args.append(f"--{k}")
-                cmd_args.append(str(v))
-
-        _record_audit_start(command_name, cmd_args)
-
-        try:
-            result = func(*args, **kwargs)
-            return result
-        except SystemExit as e:
-            _record_audit_end(e.code if e.code is not None else 0)
-            raise
-        except Exception:
-            _record_audit_end(1)
-            raise
+    command_name = func.__name__.replace("_async", "")
 
     # Check if it's an async function
     import asyncio
     if asyncio.iscoroutinefunction(func):
-        @functools.wraps(func)
+        @wraps(func)
         async def async_wrapper(*args, **kwargs):
-            _record_audit_start(command_name, [str(a) for a in args if a])
+            cmd_args = [str(a) for a in args if a]
+            _record_audit_start(command_name, cmd_args)
             try:
                 return await func(*args, **kwargs)
             except SystemExit as e:
@@ -170,6 +141,37 @@ def audit_hook(func):
             except Exception:
                 _record_audit_end(1)
                 raise
+        return async_wrapper
+    else:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            # Get args from kwargs or sys.argv
+            cmd_args = []
+            for k, v in kwargs.items():
+                if k in ("config_file",):
+                    continue
+                if isinstance(v, bool):
+                    if v:
+                        cmd_args.append(f"--{k}")
+                elif isinstance(v, (str, int, float)):
+                    cmd_args.append(f"--{k}")
+                    cmd_args.append(str(v))
+                elif v is not None:
+                    cmd_args.append(f"--{k}")
+                    cmd_args.append(str(v))
+
+            _record_audit_start(command_name, cmd_args)
+
+            try:
+                result = func(*args, **kwargs)
+                return result
+            except SystemExit as e:
+                _record_audit_end(e.code if e.code is not None else 0)
+                raise
+            except Exception:
+                _record_audit_end(1)
+                raise
+        return wrapper
         return async_wrapper
 
     return wrapper
@@ -186,7 +188,6 @@ def audit_command(func: Callable[..., Any]) -> Callable[..., Any]:
         command_name = func.__name__
 
         # Get sys.argv for args
-        import sys
         cmd_args = sys.argv[1:] if len(sys.argv) > 1 else []
 
         # Get audit logger
@@ -365,11 +366,11 @@ async def _ensure_default_repository(config: AppConfig):
 @app.command()
 def ingest(
     path: Path = typer.Argument(..., help="File or directory to ingest"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
     recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest directory"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing documents with the same source path"),
-    include: Optional[str] = typer.Option(None, "--include", "-i", help="Regex pattern to filter files (e.g., '.*\\.md' for markdown files)"),
+    include: str | None = typer.Option(None, "--include", "-i", help="Regex pattern to filter files (e.g., '.*\\.md' for markdown files)"),
 ):
     """Ingest documents into the knowledge base."""
     # Record audit start
@@ -377,7 +378,7 @@ def ingest(
     asyncio.run(_ingest_async(path, config_file, recursive, repository, force, include))
 
 
-async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool, repository: Optional[str], force: bool, include: Optional[str] = None):
+async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, repository: str | None, force: bool, include: str | None = None):
     """Async implementation of ingest command."""
     # Import DocumentType at function level to avoid scope issues
     from memory.core.models import Document, DocumentType
@@ -442,7 +443,7 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
         if include:
             try:
                 include_pattern = re.compile(include)
-            except re.error as e:
+            except re.error:
                 console.print(f"[red]Invalid regex pattern: {include}[/red]")
                 return
 
@@ -475,7 +476,7 @@ async def _ingest_async(path: Path, config_file: Optional[Path], recursive: bool
             if include:
                 console.print(f"[yellow]No files found matching pattern '{include}'[/yellow]")
             else:
-                console.print(f"[yellow]No files found to ingest[/yellow]")
+                console.print("[yellow]No files found to ingest[/yellow]")
             return
 
         total_files = len(files_to_ingest)
@@ -657,8 +658,8 @@ def search(
         help="Output format: text, json, or markdown",
     ),
     no_content: bool = typer.Option(False, "--no-content", help="Don't show chunk content in text output"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
 ):
     """Perform semantic search."""
     # Record audit start
@@ -669,8 +670,8 @@ def search(
 async def _search_async(
     query: str,
     top_k: int,
-    config_file: Optional[Path],
-    repository: Optional[str],
+    config_file: Path | None,
+    repository: str | None,
     output: OutputFormat = OutputFormat.TEXT,
     no_content: bool = False,
 ):
@@ -714,7 +715,7 @@ async def _search_async(
                 console.print(f"[cyan]Initializing embedding provider: {config.embedding.provider.value}...[/cyan]")
             embedding_provider = create_embedding_provider(provider_config)
             if output != OutputFormat.JSON:
-                console.print(f"[green]✓ Embedding provider ready[/green]")
+                console.print("[green]✓ Embedding provider ready[/green]")
 
         except Exception as e:
             console.print(f"[red]Error creating embedding provider: {str(e)}[/red]")
@@ -782,8 +783,8 @@ async def _search_async(
 def ask(
     question: str = typer.Argument(..., help="Question to answer"),
     top_k: int = typer.Option(5, "--top-k", "-k", help="Number of chunks to retrieve"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
 ):
     """Ask a question and get an LLM-generated answer."""
     # Record audit start
@@ -791,7 +792,7 @@ def ask(
     asyncio.run(_ask_async(question, top_k, config_file, repository))
 
 
-async def _ask_async(question: str, top_k: int, config_file: Optional[Path], repository: Optional[str]):
+async def _ask_async(question: str, top_k: int, config_file: Path | None, repository: str | None):
     """Async implementation of ask command."""
     config = _load_config(config_file)
 
@@ -829,7 +830,7 @@ async def _ask_async(question: str, top_k: int, config_file: Optional[Path], rep
         raise typer.Exit(1)
 
     # Note: LLM provider not yet implemented, so we'll just show retrieved chunks
-    console.print(f"[yellow]Note: LLM provider not yet implemented. Showing retrieved chunks only.[/yellow]\n")
+    console.print("[yellow]Note: LLM provider not yet implemented. Showing retrieved chunks only.[/yellow]\n")
 
     # Initialize query pipeline
     from memory.pipelines.query import QueryPipeline
@@ -881,13 +882,13 @@ async def _ask_async(question: str, top_k: int, config_file: Optional[Path], rep
 @app.command()
 def chunk(
     source: str = typer.Argument(..., help="Document ID, name, or file path to analyze"),
-    size: Optional[int] = typer.Option(None, "--size", help="Custom chunk size in characters"),
-    overlap: Optional[int] = typer.Option(None, "--overlap", help="Custom chunk overlap in characters"),
+    size: int | None = typer.Option(None, "--size", help="Custom chunk size in characters"),
+    overlap: int | None = typer.Option(None, "--overlap", help="Custom chunk overlap in characters"),
     test_mode: bool = typer.Option(False, "--test", help="Enable test mode (no changes saved)"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
     verbose: bool = typer.Option(False, "--verbose", help="Show detailed chunk information"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Analyze and display document chunking results."""
     # Record audit start
@@ -897,18 +898,17 @@ def chunk(
 
 async def _chunk_async(
     source: str,
-    size: Optional[int],
-    overlap: Optional[int],
+    size: int | None,
+    overlap: int | None,
     test_mode: bool,
     json_output: bool,
     verbose: bool,
-    repository: Optional[str],
-    config_file: Optional[Path],
+    repository: str | None,
+    config_file: Path | None,
 ):
     """Async implementation of chunk command."""
     from pathlib import Path
     from uuid import UUID
-    from typing import Tuple, Optional
 
     # Load configuration
     config = _load_config(config_file)
@@ -1019,10 +1019,14 @@ async def _chunk_async(
             console.print("[cyan]Chunking document...[/cyan]\n")
 
         # Create chunking config with overrides
-        from memory.config.schema import ChunkingConfig
         from uuid import uuid4
-        from memory.core.markdown_chunking import chunk_markdown_document, parse_markdown_sections, smart_merge_chunks
-        from memory.core.models import Document as DomainDocument, DocumentType
+
+        from memory.config.schema import ChunkingConfig
+        from memory.core.markdown_chunking import (
+            chunk_markdown_document,
+        )
+        from memory.core.models import Document as DomainDocument
+        from memory.core.models import DocumentType
 
         chunking_config = ChunkingConfig(
             chunk_size=size if size is not None else config.chunking.chunk_size,
@@ -1068,16 +1072,16 @@ async def _chunk_async(
 
         # Display document and repository information
         if is_file_path:
-            console.print(f"[bold]Document:[/bold]")
+            console.print("[bold]Document:[/bold]")
             console.print(f"  Source: {doc_metadata.get('source_path', 'unknown')}")
             console.print(f"  Type: {doc_metadata.get('document_type', 'unknown')}")
             if 'file_size' in doc_metadata:
                 console.print(f"  Size: {doc_metadata['file_size']} bytes")
         else:
-            console.print(f"[bold]Repository:[/bold]")
+            console.print("[bold]Repository:[/bold]")
             console.print(f"  Name: {repo_name}")
             console.print(f"  ID: {repository_obj.id}")
-            console.print(f"\n[bold]Document:[/bold]")
+            console.print("\n[bold]Document:[/bold]")
             console.print(f"  ID: {doc_metadata.get('document_id', 'unknown')}")
             console.print(f"  Source: {doc_metadata.get('source_path', 'unknown')}")
             console.print(f"  Type: {doc_metadata.get('document_type', 'unknown')}")
@@ -1095,7 +1099,7 @@ async def _chunk_async(
             chunk_type = chunk.metadata.get("chunk_type", "unknown")
             type_counts[chunk_type] = type_counts.get(chunk_type, 0) + 1
 
-        console.print(f"[bold]Statistics:[/bold]")
+        console.print("[bold]Statistics:[/bold]")
         console.print(f"  Total chunks: {len(chunks)}")
         console.print(f"  Average size: {avg_size:.1f} characters")
         console.print(f"  Size range: {min_size} - {max_size} characters")
@@ -1103,7 +1107,7 @@ async def _chunk_async(
         console.print(f"  Overlap used: {chunking_config.chunk_overlap}")
 
         # Display chunk type distribution
-        console.print(f"\n[bold]Chunk Types:[/bold]")
+        console.print("\n[bold]Chunk Types:[/bold]")
         for chunk_type, count in sorted(type_counts.items()):
             percentage = (count / len(chunks)) * 100
             console.print(f"  {chunk_type}: {count} ({percentage:.1f}%)")
@@ -1186,14 +1190,14 @@ app.add_typer(repo_app, name="repo")
 @repo_app.command("create")
 def repo_create(
     name: str = typer.Argument(..., help="Repository name (kebab-case)"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="Repository description"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    description: str | None = typer.Option(None, "--description", "-d", help="Repository description"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Create a new repository."""
     asyncio.run(_repo_create_async(name, description, config_file))
 
 
-async def _repo_create_async(name: str, description: Optional[str], config_file: Optional[Path]):
+async def _repo_create_async(name: str, description: str | None, config_file: Path | None):
     """Async implementation of repo create command."""
     config = _load_config(config_file)
 
@@ -1233,13 +1237,13 @@ async def _repo_create_async(name: str, description: Optional[str], config_file:
 
 @repo_app.command("list")
 def repo_list(
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """List all repositories."""
     asyncio.run(_repo_list_async(config_file))
 
 
-async def _repo_list_async(config_file: Optional[Path]):
+async def _repo_list_async(config_file: Path | None):
     """Async implementation of repo list command."""
     config = _load_config(config_file)
 
@@ -1290,13 +1294,13 @@ async def _repo_list_async(config_file: Optional[Path]):
 @repo_app.command("info")
 def repo_info(
     name: str = typer.Argument(..., help="Repository name"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Show repository information."""
     asyncio.run(_repo_info_async(name, config_file))
 
 
-async def _repo_info_async(name: str, config_file: Optional[Path]):
+async def _repo_info_async(name: str, config_file: Path | None):
     """Async implementation of repo info command."""
     config = _load_config(config_file)
 
@@ -1332,8 +1336,8 @@ async def _repo_info_async(name: str, config_file: Optional[Path]):
         table.add_row("Total Embeddings", str(embedding_count))
         # Convert UTC to local timezone for display
         # Assume stored time is UTC (no timezone info), convert to local
-        created_utc = repository.created_at.replace(tzinfo=dt.timezone.utc)
-        updated_utc = repository.updated_at.replace(tzinfo=dt.timezone.utc)
+        created_utc = repository.created_at.replace(tzinfo=dt.UTC)
+        updated_utc = repository.updated_at.replace(tzinfo=dt.UTC)
         created_local = created_utc.astimezone()
         updated_local = updated_utc.astimezone()
         table.add_row("Created", created_local.strftime("%Y-%m-%d %H:%M:%S"))
@@ -1354,19 +1358,19 @@ async def _repo_info_async(name: str, config_file: Optional[Path]):
 def repo_delete(
     name: str = typer.Argument(..., help="Repository name"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Delete a repository and all its data."""
     asyncio.run(_repo_delete_async(name, force, config_file))
 
 
-async def _repo_delete_async(name: str, force: bool, config_file: Optional[Path]):
+async def _repo_delete_async(name: str, force: bool, config_file: Path | None):
     """Async implementation of repo delete command."""
     config = _load_config(config_file)
 
     # Confirmation prompt unless --force is used
     if not force:
-        confirm = typer.confirm(
+        typer.confirm(
             f"Are you sure you want to delete repository '{name}' and all its data?",
             abort=True,
         )
@@ -1410,13 +1414,13 @@ def repo_clear(
     name: str = typer.Argument(..., help="Repository name"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview what would be deleted without actually deleting"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Clear all documents from a repository."""
     asyncio.run(_repo_clear_async(name, dry_run, yes, config_file))
 
 
-async def _repo_clear_async(name: str, dry_run: bool, yes: bool, config_file: Optional[Path]):
+async def _repo_clear_async(name: str, dry_run: bool, yes: bool, config_file: Path | None):
     """Async implementation of repo clear command."""
     config = _load_config(config_file)
 
@@ -1447,10 +1451,10 @@ async def _repo_clear_async(name: str, dry_run: bool, yes: bool, config_file: Op
 
         # Confirmation prompt unless --yes is used
         if not yes:
-            console.print(f"\n[bold red]WARNING:[/bold red] This will permanently delete ALL documents")
+            console.print("\n[bold red]WARNING:[/bold red] This will permanently delete ALL documents")
             console.print(f"from repository '{name}'.\n")
 
-            confirm = typer.confirm("Are you sure you want to continue?", abort=True)
+            typer.confirm("Are you sure you want to continue?", abort=True)
 
         # Clear repository
         deleted_count = await repo_manager.clear_repository(repository.id)
@@ -1476,12 +1480,12 @@ app.add_typer(doc_app, name="doc")
 def doc_query(
     page: int = typer.Option(1, "--page", "-p", help="Page number (1-based)"),
     page_size: int = typer.Option(20, "--page-size", "-s", help="Number of items per page"),
-    search: Optional[str] = typer.Option(None, "--search", help="Search documents by name"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name"),
+    search: str | None = typer.Option(None, "--search", help="Search documents by name"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name"),
     sort: str = typer.Option("created_at", "--sort", help="Sort by: created_at, updated_at, name"),
     desc: bool = typer.Option(False, "--desc", help="Sort in descending order"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Query and list documents with pagination and filtering."""
     asyncio.run(_doc_query_async(page, page_size, search, repository, sort, desc, json_output, config_file))
@@ -1490,12 +1494,12 @@ def doc_query(
 async def _doc_query_async(
     page: int,
     page_size: int,
-    search: Optional[str],
-    repository: Optional[str],
+    search: str | None,
+    repository: str | None,
     sort: str,
     desc: bool,
     json_output: bool,
-    config_file: Optional[Path],
+    config_file: Path | None,
 ):
     """Async implementation of doc query command."""
     # Validate pagination parameters
@@ -1608,8 +1612,8 @@ async def _doc_query_async(
                         doc.title or doc.source_path,
                         doc.source_path,
                         str(chunk_counts.get(doc.id, 0)),
-                        doc.created_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if doc.created_at else "-",
-                        doc.updated_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if doc.updated_at else "-",
+                        doc.created_at.replace(tzinfo=dt.UTC).astimezone().strftime("%Y-%m-%d %H:%M:%S") if doc.created_at else "-",
+                        doc.updated_at.replace(tzinfo=dt.UTC).astimezone().strftime("%Y-%m-%d %H:%M:%S") if doc.updated_at else "-",
                     )
 
                 console.print(table)
@@ -1630,10 +1634,10 @@ async def _doc_query_async(
 @doc_app.command("info")
 def doc_info(
     document_id: str = typer.Argument(..., help="Document ID (UUID or name)"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name"),
     full: bool = typer.Option(False, "--full", help="Display full content"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Display detailed information about a specific document."""
     asyncio.run(_doc_info_async(document_id, repository, full, json_output, config_file))
@@ -1641,10 +1645,10 @@ def doc_info(
 
 async def _doc_info_async(
     document_id: str,
-    repository: Optional[str],
+    repository: str | None,
     full: bool,
     json_output: bool,
-    config_file: Optional[Path],
+    config_file: Path | None,
 ):
     """Async implementation of doc info command."""
     # Load configuration
@@ -1690,7 +1694,6 @@ async def _doc_info_async(
                 document = matching_docs[0]
 
         # Get document chunks for statistics
-        from memory.core.models import Chunk
         chunks = await metadata_store.get_chunks_by_document(document.id)
 
         # Calculate chunk statistics
@@ -1736,8 +1739,8 @@ async def _doc_info_async(
             table.add_row("Type", document.doc_type.value if document.doc_type else "-")
             table.add_row("Source Path", document.source_path)
             table.add_row("Repository", repo_name)
-            table.add_row("Created", document.created_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if document.created_at else "-")
-            table.add_row("Updated", document.updated_at.replace(tzinfo=dt.timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M:%S") if document.updated_at else "-")
+            table.add_row("Created", document.created_at.replace(tzinfo=dt.UTC).astimezone().strftime("%Y-%m-%d %H:%M:%S") if document.created_at else "-")
+            table.add_row("Updated", document.updated_at.replace(tzinfo=dt.UTC).astimezone().strftime("%Y-%m-%d %H:%M:%S") if document.updated_at else "-")
             table.add_row("Content Length", f"{len(document.content)} characters")
             table.add_row("Total Chunks", str(chunk_stats["count"]))
             table.add_row("Avg Chunk Size", f"{chunk_stats['avg_size']:.2f} chars")
@@ -1763,10 +1766,10 @@ async def _doc_info_async(
 @doc_app.command("delete")
 def doc_delete(
     document_ids: list[str] = typer.Argument(..., help="Document ID(s) to delete (UUID or name)"),
-    repository: Optional[str] = typer.Option(None, "--repository", help="Repository name"),
+    repository: str | None = typer.Option(None, "--repository", help="Repository name"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be deleted without actually deleting"),
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Delete one or more documents and all their associated data."""
     asyncio.run(_doc_delete_async(document_ids, repository, force, dry_run, config_file))
@@ -1774,10 +1777,10 @@ def doc_delete(
 
 async def _doc_delete_async(
     document_ids: list[str],
-    repository: Optional[str],
+    repository: str | None,
     force: bool,
     dry_run: bool,
-    config_file: Optional[Path],
+    config_file: Path | None,
 ):
     """Async implementation of doc delete command."""
     # Load configuration
@@ -1801,7 +1804,7 @@ async def _doc_delete_async(
 
         # Resolve all document IDs
         from uuid import UUID
-        from memory.core.models import Chunk
+
 
         documents_to_delete = []
         errors = []
@@ -1861,11 +1864,12 @@ async def _doc_delete_async(
         # Confirmation prompt if not forced
         if not force:
             if len(documents_to_delete) == 1:
-                confirm_msg = f"Are you sure you want to delete document '{documents_to_delete[0].title or documents_to_delete[0].source_path}'? This will remove the document, all chunks, and all embeddings."
+                doc_name = documents_to_delete[0].title or documents_to_delete[0].source_path
+                confirm_msg = f"Are you sure you want to delete document '{doc_name}'? This will remove the document, all chunks, and all embeddings."
             else:
                 confirm_msg = f"Are you sure you want to delete {len(documents_to_delete)} documents? This cannot be undone."
 
-            confirm = typer.confirm(confirm_msg, abort=True)
+            typer.confirm(confirm_msg, abort=True)
 
         # Delete documents
         deleted_count = 0
@@ -1919,7 +1923,7 @@ async def _doc_delete_async(
 
 @app.command()
 def info(
-    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
+    config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Show system information and configuration."""
     # Record audit start
@@ -1944,7 +1948,7 @@ def info(
     console.print(table)
 
 
-def _load_config(config_file: Optional[Path]) -> AppConfig:
+def _load_config(config_file: Path | None) -> AppConfig:
     """Load configuration and setup logging."""
     if config_file is None:
         config_file = get_default_config_path()

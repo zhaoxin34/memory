@@ -24,7 +24,7 @@ import logging
 import logging.handlers
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -106,7 +106,7 @@ class TimedRotatingFileHandler(logging.handlers.TimedRotatingFileHandler):
         base_name = os.path.basename(base_path)
 
         # Find and remove old log files
-        cutoff_time = datetime.now(timezone.utc).timestamp() - (self.max_days * 86400)
+        cutoff_time = datetime.now(UTC).timestamp() - (self.max_days * 86400)
 
         for filename in os.listdir(base_dir):
             if filename.startswith(base_name + "."):
@@ -127,7 +127,7 @@ def add_app_context(logger: Any, method_name: str, event_dict: EventDict) -> Eve
 def configure_logging(
     level: str = "INFO",
     json_logs: bool = False,
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     max_days: int = 30,
     enable_file: bool = True,
 ) -> None:
@@ -273,9 +273,9 @@ class AuditLogger:
         self,
         command: str,
         args: list[str],
-        exit_code: Optional[int] = None,
-        duration_ms: Optional[int] = None,
-        user: Optional[str] = None,
+        exit_code: int | None = None,
+        duration_ms: int | None = None,
+        user: str | None = None,
     ) -> None:
         """Record an audit log entry.
 
@@ -289,7 +289,7 @@ class AuditLogger:
         import getpass
 
         entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "command": command,
             "args": args,
             "exit_code": exit_code,
@@ -314,7 +314,7 @@ class AuditLogger:
 
 
 def get_audit_logger(
-    log_dir: Optional[Path] = None,
+    log_dir: Path | None = None,
     max_days: int = 30,
 ) -> AuditLogger:
     """Get or create the audit logger instance.

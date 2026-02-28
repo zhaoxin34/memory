@@ -12,8 +12,6 @@ tree-sitter for accurate syntax tree parsing, supporting:
 
 import re
 import signal
-from pathlib import Path
-from typing import Iterator, Optional
 
 from memory.config.schema import ChunkingConfig
 from memory.core.models import Chunk, Document
@@ -25,8 +23,8 @@ logger = get_logger(__name__)
 def _check_tree_sitter_available() -> bool:
     """Check if tree-sitter is available."""
     try:
-        import tree_sitter
-        return True
+        import importlib.util
+        return importlib.util.find_spec("tree_sitter") is not None
     except ImportError:
         return False
 
@@ -90,7 +88,7 @@ class SemanticNode:
         return self.node_type == "paragraph"
 
 
-def parse_markdown_syntax_tree(text: str) -> Optional[SemanticNode]:
+def parse_markdown_syntax_tree(text: str) -> SemanticNode | None:
     """Parse Markdown text into a syntax tree using tree-sitter.
 
     Args:

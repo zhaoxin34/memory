@@ -13,7 +13,7 @@ How to extend:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -23,7 +23,7 @@ class ProviderConfig(BaseModel):
 
     provider_type: str
     model_name: str
-    api_key: Optional[str] = None
+    api_key: str | None = None
     extra_params: dict[str, Any] = {}
 
 
@@ -98,8 +98,8 @@ class LLMProvider(ABC):
     async def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        max_tokens: Optional[int] = None,
+        system_prompt: str | None = None,
+        max_tokens: int | None = None,
         temperature: float = 0.7,
     ) -> str:
         """Generate text completion.
@@ -127,7 +127,7 @@ class LLMProvider(ABC):
 class ProviderError(Exception):
     """Base exception for provider errors."""
 
-    def __init__(self, message: str, provider: str, original_error: Optional[Exception] = None):
+    def __init__(self, message: str, provider: str, original_error: Exception | None = None):
         self.message = message
         self.provider = provider
         self.original_error = original_error

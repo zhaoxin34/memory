@@ -34,7 +34,9 @@
       "WebFetch(domain:docs.pinecone.io)",
       "Bash(/Volumes/data/working/life/memory/.venv/bin/uv pip:*)",
       "Bash(/Volumes/data/working/life/memory/.venv/bin/memory:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(ruff check:*)",
+      "Bash(chmod +x:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

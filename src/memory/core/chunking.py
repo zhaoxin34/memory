@@ -14,7 +14,7 @@ Specialized chunking:
 - Markdown-aware chunking for .md files (preserves headings, paragraphs, lists)
 """
 
-from typing import Iterator
+from collections.abc import Iterator
 
 from memory.config.schema import ChunkingConfig
 from memory.core.models import Chunk, Document, DocumentType

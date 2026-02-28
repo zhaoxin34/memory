@@ -10,7 +10,7 @@ These models represent the fundamental entities in the system:
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
@@ -25,7 +25,7 @@ class Repository(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(..., pattern="^[a-z0-9-]+$", description="Repository name (kebab-case)")
-    description: Optional[str] = None
+    description: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -59,9 +59,9 @@ class Document(BaseModel):
     repository_id: UUID = Field(..., description="Repository this document belongs to")
     source_path: str = Field(..., description="Original path or URL of the document")
     doc_type: DocumentType = Field(default=DocumentType.UNKNOWN)
-    title: Optional[str] = None
+    title: str | None = None
     content: str = Field(..., description="Full text content of the document")
-    content_md5: Optional[str] = Field(None, description="MD5 hash of the document content")
+    content_md5: str | None = Field(None, description="MD5 hash of the document content")
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -141,7 +141,7 @@ class SearchResult(BaseModel):
 
     chunk: Chunk
     score: float = Field(..., ge=0.0, le=1.0, description="Relevance score (0-1)")
-    document: Optional[Document] = None
+    document: Document | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     class Config:

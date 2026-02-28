@@ -12,10 +12,9 @@ How to use:
     await pipeline.ingest_document(document)
 """
 
-from pathlib import Path
-from typing import Optional
-from uuid import UUID
 from dataclasses import dataclass
+from pathlib import Path
+from uuid import UUID
 
 from memory.config.schema import AppConfig
 from memory.core.chunking import create_chunks
@@ -32,8 +31,8 @@ class IngestionResult:
     """Result of document ingestion."""
     chunk_count: int
     updated: bool
-    reason: Optional[str] = None
-    document_id: Optional[UUID] = None
+    reason: str | None = None
+    document_id: UUID | None = None
 
 
 class IngestionPipeline:
@@ -45,7 +44,7 @@ class IngestionPipeline:
         embedding_provider: EmbeddingProvider,
         vector_store: VectorStore,
         metadata_store: MetadataStore,
-        repository_id: Optional[UUID] = None,
+        repository_id: UUID | None = None,
     ):
         """Initialize the ingestion pipeline.
 
@@ -264,7 +263,7 @@ class IngestionPipeline:
 
             raise IngestionError(f"Failed to ingest document: {e}") from e
 
-    async def _find_document_by_source_path(self, source_path: str, repository_id: UUID) -> Optional[Document]:
+    async def _find_document_by_source_path(self, source_path: str, repository_id: UUID) -> Document | None:
         """Find a document by its source path and repository ID.
 
         Args:
@@ -307,7 +306,7 @@ class IngestionPipeline:
         await self.metadata_store.delete_document(document_id)
         logger.info("cascade_delete_completed", document_id=str(document_id))
 
-    async def ingest_file(self, file_path: Path, repository_id: Optional[UUID] = None) -> UUID:
+    async def ingest_file(self, file_path: Path, repository_id: UUID | None = None) -> UUID:
         """Ingest a file from the filesystem.
 
         Args:

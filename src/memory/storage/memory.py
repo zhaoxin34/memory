@@ -6,7 +6,6 @@ These implementations store all data in memory and are useful for:
 - Small-scale deployments
 """
 
-from typing import Optional
 from uuid import UUID
 
 from memory.core.models import Chunk, Document, Embedding, Repository, SearchResult
@@ -56,8 +55,8 @@ class InMemoryVectorStore(VectorStore):
         self,
         query_vector: list[float],
         top_k: int = 10,
-        repository_id: Optional[UUID] = None,
-        filters: Optional[dict] = None,
+        repository_id: UUID | None = None,
+        filters: dict | None = None,
     ) -> list[SearchResult]:
         """Search for similar embeddings."""
         # If repository_id is provided, only search in that repository's collection
@@ -164,7 +163,7 @@ class InMemoryMetadataStore(MetadataStore):
         """Store a document."""
         self.documents[document.id] = document
 
-    async def get_document(self, document_id: UUID) -> Optional[Document]:
+    async def get_document(self, document_id: UUID) -> Document | None:
         """Retrieve a document by ID."""
         return self.documents.get(document_id)
 
@@ -172,7 +171,7 @@ class InMemoryMetadataStore(MetadataStore):
         """Store a chunk."""
         self.chunks[chunk.id] = chunk
 
-    async def get_chunk(self, chunk_id: UUID) -> Optional[Chunk]:
+    async def get_chunk(self, chunk_id: UUID) -> Chunk | None:
         """Retrieve a chunk by ID."""
         return self.chunks.get(chunk_id)
 
@@ -198,7 +197,7 @@ class InMemoryMetadataStore(MetadataStore):
         return True
 
     async def list_documents(
-        self, limit: int = 100, offset: int = 0, repository_id: Optional[UUID] = None
+        self, limit: int = 100, offset: int = 0, repository_id: UUID | None = None
     ) -> list[Document]:
         """List documents with pagination."""
         docs = list(self.documents.values())
@@ -214,11 +213,11 @@ class InMemoryMetadataStore(MetadataStore):
         """Store a repository."""
         self.repositories[repository.id] = repository
 
-    async def get_repository(self, repository_id: UUID) -> Optional[Repository]:
+    async def get_repository(self, repository_id: UUID) -> Repository | None:
         """Retrieve a repository by ID."""
         return self.repositories.get(repository_id)
 
-    async def get_repository_by_name(self, name: str) -> Optional[Repository]:
+    async def get_repository_by_name(self, name: str) -> Repository | None:
         """Retrieve a repository by name."""
         for repo in self.repositories.values():
             if repo.name == name:

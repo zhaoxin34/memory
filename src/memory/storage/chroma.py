@@ -16,7 +16,6 @@ Trade-offs:
 """
 
 import re
-from typing import Optional
 from uuid import UUID
 
 import structlog
@@ -303,8 +302,8 @@ class ChromaVectorStore(VectorStore):
         self,
         query_vector: list[float],
         top_k: int = 10,
-        repository_id: Optional[UUID] = None,
-        filters: Optional[dict] = None,
+        repository_id: UUID | None = None,
+        filters: dict | None = None,
     ) -> list[SearchResult]:
         """Search for similar embeddings.
 

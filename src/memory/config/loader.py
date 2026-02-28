@@ -9,7 +9,6 @@ Supports:
 
 import tomllib
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -36,9 +35,9 @@ def _expand_path_in_config(config_data: dict) -> dict:
 
 
 def load_config(
-    config_path: Optional[Path] = None,
-    profile: Optional[str] = None,
-    env_file: Optional[Path] = None,
+    config_path: Path | None = None,
+    profile: str | None = None,
+    env_file: Path | None = None,
 ) -> AppConfig:
     """Load application configuration.
 

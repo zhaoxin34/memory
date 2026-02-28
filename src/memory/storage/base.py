@@ -13,7 +13,7 @@ How to extend:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ class StorageConfig(BaseModel):
     """Base configuration for storage backends."""
 
     storage_type: str
-    connection_string: Optional[str] = None
+    connection_string: str | None = None
     collection_name: str = "memory"
     extra_params: dict[str, Any] = {}
 
@@ -73,7 +73,7 @@ class VectorStore(ABC):
 
     @abstractmethod
     async def search(
-        self, query_vector: list[float], top_k: int = 10, repository_id: Optional[UUID] = None, filters: Optional[dict] = None
+        self, query_vector: list[float], top_k: int = 10, repository_id: UUID | None = None, filters: dict | None = None
     ) -> list[SearchResult]:
         """Search for similar embeddings.
 
@@ -161,7 +161,7 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
-    async def get_document(self, document_id: UUID) -> Optional[Document]:
+    async def get_document(self, document_id: UUID) -> Document | None:
         """Retrieve a document by ID.
 
         Args:
@@ -182,7 +182,7 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
-    async def get_chunk(self, chunk_id: UUID) -> Optional[Chunk]:
+    async def get_chunk(self, chunk_id: UUID) -> Chunk | None:
         """Retrieve a chunk by ID.
 
         Args:
@@ -218,7 +218,7 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
-    async def list_documents(self, limit: int = 100, offset: int = 0, repository_id: Optional[UUID] = None) -> list[Document]:
+    async def list_documents(self, limit: int = 100, offset: int = 0, repository_id: UUID | None = None) -> list[Document]:
         """List documents with pagination.
 
         Args:
@@ -241,7 +241,7 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
-    async def get_repository(self, repository_id: UUID) -> Optional[Repository]:
+    async def get_repository(self, repository_id: UUID) -> Repository | None:
         """Retrieve a repository by ID.
 
         Args:
@@ -253,7 +253,7 @@ class MetadataStore(ABC):
         pass
 
     @abstractmethod
-    async def get_repository_by_name(self, name: str) -> Optional[Repository]:
+    async def get_repository_by_name(self, name: str) -> Repository | None:
         """Retrieve a repository by name.
 
         Args:
@@ -312,7 +312,7 @@ class MetadataStore(ABC):
 class StorageError(Exception):
     """Base exception for storage errors."""
 
-    def __init__(self, message: str, storage_type: str, original_error: Optional[Exception] = None):
+    def __init__(self, message: str, storage_type: str, original_error: Exception | None = None):
         self.message = message
         self.storage_type = storage_type
         self.original_error = original_error

@@ -6,7 +6,6 @@ Uses aiosqlite for async operations.
 
 import json
 from datetime import datetime
-from typing import Optional
 from uuid import UUID
 
 import aiosqlite
@@ -41,7 +40,7 @@ class SQLiteMetadataStore(MetadataStore):
             # Expand user path if needed
             self.db_path = os.path.expanduser(conn_str)
 
-        self.connection: Optional[aiosqlite.Connection] = None
+        self.connection: aiosqlite.Connection | None = None
 
     async def initialize(self) -> None:
         """Initialize the metadata store (create tables)."""
@@ -158,7 +157,7 @@ class SQLiteMetadataStore(MetadataStore):
                 original_error=e,
             )
 
-    async def get_repository(self, repository_id: UUID) -> Optional[Repository]:
+    async def get_repository(self, repository_id: UUID) -> Repository | None:
         """Retrieve a repository by ID."""
         if not self.connection:
             raise StorageError("Database not initialized", storage_type="sqlite")
@@ -188,7 +187,7 @@ class SQLiteMetadataStore(MetadataStore):
                 original_error=e,
             )
 
-    async def get_repository_by_name(self, name: str) -> Optional[Repository]:
+    async def get_repository_by_name(self, name: str) -> Repository | None:
         """Retrieve a repository by name."""
         if not self.connection:
             raise StorageError("Database not initialized", storage_type="sqlite")
@@ -331,7 +330,7 @@ class SQLiteMetadataStore(MetadataStore):
                 original_error=e,
             )
 
-    async def get_document(self, document_id: UUID) -> Optional[Document]:
+    async def get_document(self, document_id: UUID) -> Document | None:
         """Retrieve a document by ID."""
         if not self.connection:
             raise StorageError("Database not initialized", storage_type="sqlite")
@@ -396,7 +395,7 @@ class SQLiteMetadataStore(MetadataStore):
                 original_error=e,
             )
 
-    async def get_chunk(self, chunk_id: UUID) -> Optional[Chunk]:
+    async def get_chunk(self, chunk_id: UUID) -> Chunk | None:
         """Retrieve a chunk by ID."""
         if not self.connection:
             raise StorageError("Database not initialized", storage_type="sqlite")
@@ -489,7 +488,7 @@ class SQLiteMetadataStore(MetadataStore):
             )
 
     async def list_documents(
-        self, limit: int = 100, offset: int = 0, repository_id: Optional[UUID] = None
+        self, limit: int = 100, offset: int = 0, repository_id: UUID | None = None
     ) -> list[Document]:
         """List documents with pagination."""
         if not self.connection:

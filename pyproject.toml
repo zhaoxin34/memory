@@ -4,25 +4,23 @@ version = "0.1.0"
 description = "Personal knowledge base system with semantic search and LLM-based QA"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [
-    { name = "Your Name", email = "your.email@example.com" }
-]
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
-    "pydantic>=2.0.0",
-    "pydantic-settings>=2.0.0",
-    "typer>=0.9.0",
-    "rich>=13.0.0",
-    "structlog>=23.0.0",
-    "python-dotenv>=1.0.0",
-    "aiosqlite>=0.22.1",
-    "httpx[socks]>=0.28.1",
+  "pydantic>=2.0.0",
+  "pydantic-settings>=2.0.0",
+  "typer>=0.9.0",
+  "rich>=13.0.0",
+  "structlog>=23.0.0",
+  "python-dotenv>=1.0.0",
+  "aiosqlite>=0.22.1",
+  "httpx[socks]>=0.28.1",
 ]
 
 [project.optional-dependencies]
@@ -44,12 +42,12 @@ tree-sitter = ["tree-sitter>=0.23.0", "tree-sitter-markdown>=0.4.0"]
 
 # Development
 dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "mypy>=1.5.0",
-    "ruff>=0.1.0",
-    "black>=23.0.0",
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.0",
+  "pytest-cov>=4.1.0",
+  "mypy>=1.5.0",
+  "ruff>=0.1.0",
+  "black>=23.0.0",
 ]
 
 [project.scripts]
@@ -61,21 +59,23 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pytest-cov>=4.1.0",
-    "mypy>=1.5.0",
-    "ruff>=0.1.0",
-    "black>=23.0.0",
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.0",
+  "pytest-cov>=4.1.0",
+  "mypy>=1.5.0",
+  "ruff>=0.1.0",
+  "black>=23.0.0",
 ]
 
 [tool.black]
-line-length = 100
+line-length = 180
 target-version = ["py311"]
 
 [tool.ruff]
-line-length = 100
+line-length = 180
 target-version = "py311"
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
 
 [tool.mypy]
