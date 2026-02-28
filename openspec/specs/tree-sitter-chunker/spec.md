@@ -1,5 +1,8 @@
-## ADDED Requirements
+# tree-sitter-chunker Specification
 
+## Purpose
+TBD - created by archiving change rewrite-markdown-chunking-with-tree-sitter. Update Purpose after archive.
+## Requirements
 ### Requirement: Markdown syntax tree parsing
 
 The system SHALL use tree-sitter-markdown to parse Markdown documents into an accurate syntax tree for intelligent chunking.
@@ -59,3 +62,4 @@ The system SHALL gracefully fall back to fixed-size chunking when tree-sitter pa
 #### Scenario: Parser timeout
 - **WHEN** parsing takes longer than 5 seconds
 - **THEN** the system SHALL cancel parsing and fall back to fixed-size chunking
+

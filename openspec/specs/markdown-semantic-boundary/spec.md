@@ -1,5 +1,8 @@
-## ADDED Requirements
+# markdown-semantic-boundary Specification
 
+## Purpose
+TBD - created by archiving change rewrite-markdown-chunking-with-tree-sitter. Update Purpose after archive.
+## Requirements
 ### Requirement: Semantic boundary detection
 
 The system SHALL detect semantic boundaries in Markdown documents to prevent inappropriate chunk splitting.
@@ -67,3 +70,4 @@ The system SHALL store semantic type information in chunk metadata for retrieval
 #### Scenario: Mark list chunks
 - **WHEN** a chunk contains primarily list items
 - **THEN** metadata SHALL include `chunk_type: "list"`
+

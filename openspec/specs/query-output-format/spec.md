@@ -1,5 +1,8 @@
-## ADDED Requirements
+# query-output-format Specification
 
+## Purpose
+TBD - created by archiving change add-query-output-formats. Update Purpose after archive.
+## Requirements
 ### Requirement: Search output format selection
 
 The search command SHALL support an `--output` parameter to select the output format.
@@ -63,3 +66,4 @@ The `--output` parameter SHALL be case-insensitive and validated.
 #### Scenario: Invalid format rejected
 - **WHEN** user runs `memory search "query" --output invalid`
 - **THEN** the system SHALL show an error with valid format options
+
