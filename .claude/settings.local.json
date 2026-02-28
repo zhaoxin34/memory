@@ -22,7 +22,19 @@
       "WebFetch(domain:docling-project.github.io)",
       "WebFetch(domain:github.com)",
       "Bash(uv run python -c:*)",
-      "mcp__plugin_claude-mem_mcp-search__search"
+      "mcp__plugin_claude-mem_mcp-search__search",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/memory repo:*)",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/memory ingest:*)",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/memory doc:*)",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/python:*)",
+      "Bash(env:*)",
+      "Bash(tail:*)",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/memory search:*)",
+      "WebFetch(domain:www.pinecone.io)",
+      "WebFetch(domain:docs.pinecone.io)",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/uv pip:*)",
+      "Bash(/Volumes/data/working/life/memory/.venv/bin/memory:*)",
+      "Bash(git commit:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

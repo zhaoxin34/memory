@@ -1,0 +1,31 @@
+# Memory Configuration File for BGE Small Model Testing
+
+app_name = "memory"
+log_level = "INFO"
+json_logs = false
+default_repository = "default"
+
+# Embedding provider - using local BGE model
+[embedding]
+provider = "local"
+model_name = "BAAI/bge-small-zh-v1.5"
+
+# Vector store
+[vector_store]
+store_type = "chroma"
+collection_name = "memory"
+
+[vector_store.extra_params]
+persist_directory = "~/.memory/chroma-bge-small"
+
+# Metadata store
+[metadata_store]
+store_type = "sqlite"
+connection_string = "~/.memory/metadata-bge-small.db"
+collection_name = "memory"
+
+# Chunking
+[chunking]
+chunk_size = 1024
+chunk_overlap = 50
+min_chunk_size = 100

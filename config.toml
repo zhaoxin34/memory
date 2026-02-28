@@ -18,7 +18,7 @@ default_repository = "default" # Default repository for documents (can be overri
 # - "openai": Use OpenAI-compatible API (supports custom base_url via extra_params)
 provider = "openai"
 # For OpenAI: text-embedding-3-small, text-embedding-3-large, text-embedding-v4, text-embedding-ada-002
-# For local: all-MiniLM-L6-v2, all-mpnet-base-v2, etc.
+# For local: all-MiniLM-L6-v2, all-mpnet-base-v2, BAAI/bge-small-zh-v1.5, BAAI/bge-large-zh-v1.5
 model_name = "text-embedding-v4"
 # API key environment variable name (code will call os.getenv(api_key))
 # Example: api_key = "BAILIAN_API_KEY" means the code will call os.getenv("BAILIAN_API_KEY")
@@ -111,6 +111,20 @@ model_name = "all-MiniLM-L6-v2"
 store_type = "memory"
 [profiles.test.metadata_store]
 store_type = "memory"
+
+# Local BGE small model profile: Uses local embedding with Chroma
+[profiles.bge-small]
+log_level = "INFO"
+[profiles.bge-small.embedding]
+provider = "local"
+model_name = "BAAI/bge-small-zh-v1.5"
+[profiles.bge-small.vector_store]
+store_type = "chroma"
+[profiles.bge-small.vector_store.extra_params]
+persist_directory = "~/.memory/chroma-bge-small"
+[profiles.bge-small.metadata_store]
+store_type = "sqlite"
+connection_string = "~/.memory/metadata-bge-small.db"
 
 # ============================================================================
 # Installation Instructions
