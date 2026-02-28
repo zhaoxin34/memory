@@ -19,6 +19,22 @@ from memory.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _expand_path_in_config(config_data: dict) -> dict:
+    """Recursively expand ~ in path strings."""
+    import os
+
+    def expand(val):
+        if isinstance(val, str) and val.startswith("~"):
+            return os.path.expanduser(val)
+        elif isinstance(val, dict):
+            return {k: expand(v) for k, v in val.items()}
+        elif isinstance(val, list):
+            return [expand(v) for v in val]
+        return val
+
+    return {k: expand(v) for k, v in config_data.items()}
+
+
 def load_config(
     config_path: Optional[Path] = None,
     profile: Optional[str] = None,
@@ -46,7 +62,9 @@ def load_config(
 
     # Load config file if specified
     config_data = {}
-    if config_path and config_path.exists():
+    if not config_path:
+        config_path = get_default_config_path()
+    if config_path.exists():
         with open(config_path, "rb") as f:
             config_data = tomllib.load(f)
         logger.info("loaded_config_file", path=str(config_path))
@@ -64,8 +82,11 @@ def load_config(
         # Remove profiles field before passing to AppConfig
         config_data.pop("profiles", None)
 
+        # Expand ~ in path strings
+        config_data = _expand_path_in_config(config_data)
+
     # Create config (environment variables override file config)
-    config = AppConfig(**config_data)
+    config = AppConfig.model_validate(config_data)
     logger.info(
         "config_loaded",
         log_level=config.log_level,

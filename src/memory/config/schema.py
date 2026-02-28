@@ -93,6 +93,11 @@ class VectorStoreConfig(BaseModel):
     persist_directory: Optional[Path] = None
     extra_params: dict[str, Any] = Field(default_factory=dict)
 
+    def model_post_init(self, __context: Any) -> None:
+        """Expand ~ in paths."""
+        if self.persist_directory:
+            self.persist_directory = self.persist_directory.expanduser()
+
 
 class MetadataStoreConfig(BaseModel):
     """Metadata store configuration."""
@@ -100,6 +105,13 @@ class MetadataStoreConfig(BaseModel):
     store_type: MetadataStoreType = MetadataStoreType.SQLITE
     connection_string: str = "sqlite:///memory.db"
     extra_params: dict[str, Any] = Field(default_factory=dict)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Expand ~ in connection string."""
+        if self.connection_string and "~" in self.connection_string:
+            self.connection_string = self.connection_string.replace(
+                "~", str(Path.home())
+            )
 
 
 class ChunkingConfig(BaseModel):
@@ -147,4 +159,6 @@ class AppConfig(BaseSettings):
 
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization: create data directory if needed."""
+        # Expand ~ in data_dir
+        self.data_dir = self.data_dir.expanduser()
         self.data_dir.mkdir(parents=True, exist_ok=True)
