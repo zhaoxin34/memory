@@ -26,8 +26,8 @@ async def test_repo(
     repo_name: str,
     model_name: str,
     provider_type: str,
-    api_key: str = None,
-):
+    api_key: str | None = None,
+) -> tuple[int, int, list[tuple[str, bool, list[str], list[float]]]] | None:
     """Test a specific repository with specific model."""
     config = load_config(config_path=CONFIG_PATH)
 
@@ -109,7 +109,7 @@ async def test_repo(
     return passed, failed, all_results
 
 
-async def main():
+async def main() -> None:
     # Test 1: OpenAI model on test-recall
     print("\n" + "="*70)
     print("TEST 1: OpenAI model (text-embedding-v4)")

@@ -75,24 +75,27 @@ class LocalEmbeddingProvider(EmbeddingProvider):
 
     def _get_dimension(self, model_name: str) -> int:
         """Get embedding dimension for model."""
-        # Check known models first
-        for known_model, dim in MODEL_DIMENSIONS.items():
-            if known_model in model_name or model_name in known_model:
-                return dim
-
+        dim = self._lookup_model_info(model_name, MODEL_DIMENSIONS, 768)
+        if dim is not None:
+            return dim
         # Try to get from model
         try:
             return self._model.get_sentence_embedding_dimension()
         except Exception:
-            # Default fallback
             return 768
 
     def _get_max_tokens(self, model_name: str) -> int:
         """Get max tokens for model."""
-        for known_model, max_tok in MODEL_MAX_TOKENS.items():
+        return self._lookup_model_info(model_name, MODEL_MAX_TOKENS, 512) or 512
+
+    def _lookup_model_info(
+        self, model_name: str, model_map: dict[str, int], default: int
+    ) -> int | None:
+        """Look up model information from known models."""
+        for known_model, value in model_map.items():
             if known_model in model_name or model_name in known_model:
-                return max_tok
-        return 512
+                return value
+        return None
 
     async def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text.
