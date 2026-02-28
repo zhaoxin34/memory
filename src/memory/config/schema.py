@@ -34,6 +34,7 @@ class EmbeddingProviderType(str, Enum):
     """Supported embedding providers."""
 
     OPENAI = "openai"
+    LOCAL = "local"
     MOCK = "mock"
 
 

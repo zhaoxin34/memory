@@ -28,6 +28,7 @@ dependencies = [
 [project.optional-dependencies]
 # Embedding providers
 openai = ["openai>=1.0.0"]
+local = ["sentence-transformers>=2.2.0"]
 
 # Vector stores
 chroma = ["chromadb>=0.4.0"]

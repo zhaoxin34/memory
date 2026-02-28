@@ -43,6 +43,21 @@ def create_embedding_provider(config: ProviderConfig) -> EmbeddingProvider:
                 original_error=e,
             )
 
+    elif provider_type == "local":
+        try:
+            from memory.providers.local import LocalEmbeddingProvider
+
+            return LocalEmbeddingProvider(config)
+        except ImportError as e:
+            raise ProviderError(
+                message=(
+                    "Local embedding provider requires sentence-transformers package. "
+                    "Install with: pip install sentence-transformers"
+                ),
+                provider="local",
+                original_error=e,
+            )
+
     else:
         raise ValueError(
             f"Unknown embedding provider type: '{provider_type}'. "
