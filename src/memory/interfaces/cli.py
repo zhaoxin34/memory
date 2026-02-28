@@ -14,9 +14,12 @@ import asyncio
 import datetime as dt
 import json
 import re
+import sys
+import time
 from enum import Enum
+from functools import wraps
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import typer
 from rich.console import Console
@@ -26,7 +29,12 @@ from rich.table import Table
 from memory.config.loader import get_default_config_path, load_config
 from memory.config.schema import AppConfig
 from memory.core.models import SearchResult
-from memory.observability.logging import configure_logging, get_logger
+from memory.observability.logging import (
+    configure_from_config,
+    configure_logging,
+    get_audit_logger,
+    get_logger,
+)
 
 app = typer.Typer(
     name="memory",
@@ -36,6 +44,185 @@ app = typer.Typer(
 
 console = Console()
 logger = get_logger(__name__)
+
+# Global config (loaded lazily)
+_config: Optional[AppConfig] = None
+
+# Audit state
+_audit_state: dict = {}
+
+
+def get_config() -> AppConfig:
+    """Get or create the global config instance."""
+    global _config
+    if _config is None:
+        _config = load_config()
+        # Configure logging from config
+        configure_from_config(_config.logging)
+    return _config
+
+
+def _record_audit_start(command: str, args: list[str]) -> None:
+    """Record audit log for command start."""
+    global _audit_state
+    try:
+        if not get_config().logging.audit.enable:
+            return
+    except Exception:
+        return  # Config not loaded yet
+
+    try:
+        audit = get_audit_logger(
+            log_dir=get_config().logging.log_dir,
+            max_days=get_config().logging.max_days,
+        )
+        audit.record(command=command, args=args)
+        _audit_state["command"] = command
+        _audit_state["args"] = args
+        _audit_state["start_time"] = time.time()
+    except Exception:
+        pass  # Ignore audit errors
+
+
+def _record_audit_end(exit_code: int) -> None:
+    """Record audit log for command end."""
+    global _audit_state
+    if not _audit_state:
+        return
+
+    try:
+        if not get_config().logging.audit.enable:
+            return
+    except Exception:
+        return
+
+    duration_ms = int((time.time() - _audit_state.get("start_time", time.time())) * 1000)
+
+    try:
+        audit = get_audit_logger(
+            log_dir=get_config().logging.log_dir,
+            max_days=get_config().logging.max_days,
+        )
+        audit.record(
+            command=_audit_state.get("command", ""),
+            args=_audit_state.get("args", []),
+            exit_code=exit_code,
+            duration_ms=duration_ms,
+        )
+    except Exception:
+        pass  # Ignore audit errors
+
+
+def _audit_atexit() -> None:
+    """Exit handler for audit logging."""
+    _record_audit_end(0)
+
+
+import atexit
+atexit.register(_audit_atexit)
+
+
+def audit_hook(func):
+    """Decorator to add audit logging to Typer commands."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get command name from function
+        command_name = func.__name__.replace("_async", "")
+
+        # Get args from kwargs or sys.argv
+        cmd_args = []
+        for k, v in kwargs.items():
+            if k in ("config_file",):
+                continue
+            if isinstance(v, bool):
+                if v:
+                    cmd_args.append(f"--{k}")
+            elif isinstance(v, (str, int, float)):
+                cmd_args.append(f"--{k}")
+                cmd_args.append(str(v))
+            elif v is not None:
+                cmd_args.append(f"--{k}")
+                cmd_args.append(str(v))
+
+        _record_audit_start(command_name, cmd_args)
+
+        try:
+            result = func(*args, **kwargs)
+            return result
+        except SystemExit as e:
+            _record_audit_end(e.code if e.code is not None else 0)
+            raise
+        except Exception:
+            _record_audit_end(1)
+            raise
+
+    # Check if it's an async function
+    import asyncio
+    if asyncio.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            _record_audit_start(command_name, [str(a) for a in args if a])
+            try:
+                return await func(*args, **kwargs)
+            except SystemExit as e:
+                _record_audit_end(e.code if e.code is not None else 0)
+                raise
+            except Exception:
+                _record_audit_end(1)
+                raise
+        return async_wrapper
+
+    return wrapper
+
+
+def audit_command(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to add audit logging to CLI commands.
+
+    Records command execution start and end times, including exit code.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get command name
+        command_name = func.__name__
+
+        # Get sys.argv for args
+        import sys
+        cmd_args = sys.argv[1:] if len(sys.argv) > 1 else []
+
+        # Get audit logger
+        config = get_config()
+        audit = get_audit_logger(
+            log_dir=config.logging.log_dir,
+            max_days=config.logging.max_days,
+        ) if config.logging.audit.enable else None
+
+        # Record start
+        if audit:
+            audit.record(command=command_name, args=cmd_args)
+
+        start_time = time.time()
+        exit_code = 0
+
+        try:
+            result = func(*args, **kwargs)
+            return result
+        except SystemExit as e:
+            exit_code = e.code if e.code is not None else 0
+            raise
+        except Exception:
+            exit_code = 1
+            raise
+        finally:
+            duration_ms = int((time.time() - start_time) * 1000)
+            if audit:
+                audit.record(
+                    command=command_name,
+                    args=cmd_args,
+                    exit_code=exit_code,
+                    duration_ms=duration_ms,
+                )
+
+    return wrapper
 
 
 class OutputFormat(str, Enum):
@@ -185,6 +372,8 @@ def ingest(
     include: Optional[str] = typer.Option(None, "--include", "-i", help="Regex pattern to filter files (e.g., '.*\\.md' for markdown files)"),
 ):
     """Ingest documents into the knowledge base."""
+    # Record audit start
+    _record_audit_start("ingest", [str(path)])
     asyncio.run(_ingest_async(path, config_file, recursive, repository, force, include))
 
 
@@ -472,6 +661,8 @@ def search(
     repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
 ):
     """Perform semantic search."""
+    # Record audit start
+    _record_audit_start("search", [query])
     asyncio.run(_search_async(query, top_k, config_file, repository, output, no_content))
 
 
@@ -595,6 +786,8 @@ def ask(
     repository: Optional[str] = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
 ):
     """Ask a question and get an LLM-generated answer."""
+    # Record audit start
+    _record_audit_start("ask", [question])
     asyncio.run(_ask_async(question, top_k, config_file, repository))
 
 
@@ -697,6 +890,8 @@ def chunk(
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Analyze and display document chunking results."""
+    # Record audit start
+    _record_audit_start("chunk", [source])
     asyncio.run(_chunk_async(source, size, overlap, test_mode, json_output, verbose, repository, config_file))
 
 
@@ -1727,6 +1922,9 @@ def info(
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Show system information and configuration."""
+    # Record audit start
+    _record_audit_start("info", ["--config", str(config_file)] if config_file else [])
+
     config = _load_config(config_file)
 
     table = Table(title="Memory System Information")
@@ -1752,7 +1950,7 @@ def _load_config(config_file: Optional[Path]) -> AppConfig:
         config_file = get_default_config_path()
 
     config = load_config(config_file)
-    configure_logging(level=config.log_level, json_logs=config.json_logs)
+    configure_from_config(config.logging)
 
     return config
 

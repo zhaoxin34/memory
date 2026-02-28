@@ -128,6 +128,29 @@ class ChunkingConfig(BaseModel):
     min_chunk_size: int = Field(default=200, gt=0, description="Minimum chunk size (smaller chunks are discarded)")
 
 
+class AuditLoggingConfig(BaseModel):
+    """CLI audit logging configuration."""
+
+    enable: bool = Field(default=True, description="Enable CLI audit logging")
+
+
+class LoggingConfig(BaseModel):
+    """Logging configuration."""
+
+    level: LogLevel = Field(default=LogLevel.INFO, description="Log level")
+    log_dir: Path = Field(
+        default=Path.home() / ".memory" / "logs",
+        description="Directory for log files"
+    )
+    max_days: int = Field(default=30, gt=0, description="Number of days to retain log files")
+    enable_file: bool = Field(default=True, description="Enable file logging")
+    audit: AuditLoggingConfig = Field(default_factory=AuditLoggingConfig)
+
+    def model_post_init(self, __context: Any) -> None:
+        """Expand ~ in log_dir."""
+        self.log_dir = self.log_dir.expanduser()
+
+
 class AppConfig(BaseSettings):
     """Main application configuration.
 
@@ -156,6 +179,7 @@ class AppConfig(BaseSettings):
     vector_store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
     metadata_store: MetadataStoreConfig = Field(default_factory=MetadataStoreConfig)
     chunking: ChunkingConfig = Field(default_factory=ChunkingConfig)
+    logging: LoggingConfig = Field(default_factory=LoggingConfig)
 
     def model_post_init(self, __context: Any) -> None:
         """Post-initialization: create data directory if needed."""
