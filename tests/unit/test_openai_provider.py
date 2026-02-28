@@ -1,9 +1,11 @@
 """Unit tests for OpenAIEmbeddingProvider."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from memory.providers.openai import OpenAIEmbeddingProvider
+
+import pytest
+
 from memory.providers.base import ProviderConfig, ProviderError
+from memory.providers.openai import OpenAIEmbeddingProvider
 
 
 @pytest.mark.asyncio

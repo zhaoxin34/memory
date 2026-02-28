@@ -1,13 +1,13 @@
 """Unit tests for RepositoryManager."""
 
-import pytest
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from memory.core.models import Document, DocumentType
 from memory.core.repository import RepositoryManager, RepositoryNotFoundError
-from memory.core.models import Repository, Document, DocumentType
-from memory.storage.memory import InMemoryVectorStore, InMemoryMetadataStore
 from memory.storage.base import StorageConfig
+from memory.storage.memory import InMemoryMetadataStore, InMemoryVectorStore
 
 
 @pytest.mark.asyncio

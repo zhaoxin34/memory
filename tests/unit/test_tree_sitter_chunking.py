@@ -1,19 +1,20 @@
 """Unit tests for tree-sitter based Markdown chunking."""
 
-import pytest
 from uuid import uuid4
 
+import pytest
+
 from memory.config.schema import ChunkingConfig
+from memory.core.models import Document, DocumentType
 from memory.core.tree_sitter_chunking import (
     SemanticNode,
-    parse_markdown_syntax_tree,
-    extract_semantic_nodes,
-    merge_to_target_size,
-    tree_sitter_chunk_document,
     _check_tree_sitter_available,
     _find_position,
+    extract_semantic_nodes,
+    merge_to_target_size,
+    parse_markdown_syntax_tree,
+    tree_sitter_chunk_document,
 )
-from memory.core.models import Document, DocumentType
 
 
 class TestTreeSitterAvailability:

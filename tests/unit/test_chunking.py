@@ -1,7 +1,8 @@
 """Unit tests for text chunking utilities."""
 
-import pytest
 from uuid import uuid4
+
+import pytest
 
 from memory.config.schema import ChunkingConfig
 from memory.core.chunking import chunk_text, create_chunks

@@ -1,18 +1,19 @@
 """Unit tests for repository management CLI commands."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
+
+import pytest
 import typer
 
-from memory.interfaces.cli import (
-    _repo_create_async,
-    _repo_list_async,
-    _repo_info_async,
-    _repo_delete_async,
-    _repo_clear_async,
-)
 from memory.core.models import Document, DocumentType, Repository
+from memory.interfaces.cli import (
+    _repo_clear_async,
+    _repo_create_async,
+    _repo_delete_async,
+    _repo_info_async,
+    _repo_list_async,
+)
 
 
 @pytest.mark.asyncio

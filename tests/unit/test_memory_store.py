@@ -1,11 +1,12 @@
 """Unit tests for InMemory storage implementations."""
 
-import pytest
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-from memory.storage.memory import InMemoryVectorStore, InMemoryMetadataStore
+import pytest
+
+from memory.core.models import Chunk, Document, DocumentType, Embedding, Repository
 from memory.storage.base import StorageConfig
-from memory.core.models import Embedding, Chunk, Document, Repository, DocumentType
+from memory.storage.memory import InMemoryMetadataStore, InMemoryVectorStore
 
 
 @pytest.mark.asyncio

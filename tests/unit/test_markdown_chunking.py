@@ -1,14 +1,16 @@
 """Unit tests for Markdown-aware chunking."""
 
-import pytest
 from uuid import uuid4
-from memory.core.models import Document, DocumentType
+
+import pytest
+
 from memory.config.schema import ChunkingConfig
 from memory.core.markdown_chunking import (
+    chunk_markdown_document,
     parse_markdown_sections,
     smart_merge_chunks,
-    chunk_markdown_document,
 )
+from memory.core.models import Document, DocumentType
 
 
 class TestMarkdownParsing:

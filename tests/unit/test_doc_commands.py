@@ -1,13 +1,13 @@
 """Unit tests for document management CLI commands."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
+
+import pytest
 import typer
 
-from memory.interfaces.cli import _doc_query_async, _doc_info_async, _doc_delete_async
-from memory.core.models import Document, DocumentType, Repository
+from memory.core.models import Document, DocumentType
+from memory.interfaces.cli import _doc_delete_async, _doc_info_async, _doc_query_async
 
 
 @pytest.mark.asyncio

@@ -1,0 +1,16 @@
+#!/bin/bash
+# Pre-commit hook: run pytest and ruff check
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Run ruff check
+echo "Running ruff check..."
+uv run ruff check src/ tests/
+
+# Run pytest
+echo "Running pytest..."
+uv run pytest
+
+echo "All checks passed!"

@@ -1,13 +1,15 @@
 """Unit tests for ChromaVectorStore."""
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 from uuid import uuid4
-from memory.storage.chroma import ChromaVectorStore
-from memory.storage.base import StorageConfig
+
+import pytest
+
 from memory.core.models import Embedding
+from memory.storage.base import StorageConfig
+from memory.storage.chroma import ChromaVectorStore
 
 
 @pytest.mark.asyncio
@@ -56,8 +58,9 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_add_embedding(self, store):
         """Test adding a single embedding."""
-        from memory.core.models import Chunk
         from uuid import UUID
+
+        from memory.core.models import Chunk
 
         chunk = Chunk(
             repository_id=UUID("12345678-1234-5678-1234-567812345678"),
@@ -83,7 +86,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_add_embeddings_batch(self, store):
         """Test adding multiple embeddings."""
-        from memory.core.models import Chunk, DocumentType
+        from memory.core.models import Chunk
 
         # Create chunks for the embeddings
         chunks = [
