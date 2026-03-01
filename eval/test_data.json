@@ -14,5 +14,13 @@
   {
     "question": "claude code2.1.51做了哪些变更?",
     "ground_truth": "改进无头模式启动性能"
+  },
+  {
+    "question": "股票投资的分析方法",
+    "ground_truth": "基本面分析、技术分析"
+  },
+  {
+    "question": "claude code  Remote Control有哪些限制？",
+    "ground_truth": "一次一个远程会话,终端必须保持打开,网络中断"
   }
 ]
