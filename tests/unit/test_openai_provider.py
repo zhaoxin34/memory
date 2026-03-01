@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from memory.providers.base import ProviderConfig, ProviderError
-from memory.providers.openai import OpenAIEmbeddingProvider
+from memory.providers.openai_embd import OpenAIEmbeddingProvider
 
 
 @pytest.mark.asyncio
@@ -341,7 +341,7 @@ class TestOpenAIEmbeddingProvider:
             )
         )
 
-        with patch("memory.providers.openai.logger") as mock_logger:
+        with patch("memory.providers.openai_embd.logger") as mock_logger:
             await provider.embed_text("Test")
 
             # Check that token usage was logged

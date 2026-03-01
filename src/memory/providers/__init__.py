@@ -34,7 +34,7 @@ def create_embedding_provider(config: ProviderConfig) -> EmbeddingProvider:
 
     if provider_type == "openai":
         try:
-            from memory.providers.openai import OpenAIEmbeddingProvider
+            from memory.providers.openai_embd import OpenAIEmbeddingProvider
 
             return OpenAIEmbeddingProvider(config)
         except ImportError as e:
@@ -75,4 +75,43 @@ __all__ = [
     "ProviderConfig",
     "ProviderError",
     "create_embedding_provider",
+    "create_llm_provider",
 ]
+
+
+def create_llm_provider(config: ProviderConfig) -> LLMProvider:
+    """Factory function to create LLM providers based on configuration.
+
+    Args:
+        config: Provider configuration with provider_type
+
+    Returns:
+        Initialized LLM provider
+
+    Raises:
+        ValueError: If provider_type is unknown
+        ProviderError: If provider initialization fails or dependencies are missing
+    """
+    provider_type = config.provider_type.lower()
+
+    if provider_type == "openai":
+        try:
+            from memory.providers.openai_llm import OpenAILLMProvider
+
+            return OpenAILLMProvider(config)
+        except ImportError as e:
+            raise ProviderError(
+                message=(
+                    "OpenAI LLM provider requires httpx package. "
+                    "Install with: uv sync"
+                ),
+                provider="openai",
+                original_error=e,
+            )
+
+    elif provider_type == "anthropic":
+        # TODO: Implement Anthropic provider
+        raise ValueError("Anthropic provider not yet implemented")
+
+    else:
+        raise ValueError(f"Unknown LLM provider type: '{provider_type}'")
