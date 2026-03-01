@@ -16,18 +16,23 @@ default_repository = "default" # Default repository for documents (can be overri
 # Options:
 # - "local": Use local sentence-transformers models
 # - "openai": Use OpenAI-compatible API (supports custom base_url via extra_params)
-provider = "openai"
+# - "ollama": Use Ollama (OpenAI-compatible, uses extra_params.base_url)
+# provider = "openai"
 # For OpenAI: text-embedding-3-small, text-embedding-3-large, text-embedding-v4, text-embedding-ada-002
 # For local: all-MiniLM-L6-v2, all-mpnet-base-v2, BAAI/bge-small-zh-v1.5, BAAI/bge-large-zh-v1.5
-model_name = "text-embedding-v4"
-# API key environment variable name (code will call os.getenv(api_key))
-# Example: api_key = "BAILIAN_API_KEY" means the code will call os.getenv("BAILIAN_API_KEY")
-api_key = "BAILIAN_API_KEY"
+# For Ollama: nomic-embed-text, mxbai-embed-large, bge-m3
+# model_name = "text-embedding-v4"
+
+provider = "ollama"
+model_name = "bge-m3"
+
+# API key is not required when using custom base_url (e.g., Ollama)
+# api_key = "not-needed"
 batch_size = 10
 
-# For custom API (e.g., 阿里云百炼), set base_url in extra_params:
+# For Ollama, set base_url to localhost:
 [embedding.extra_params]
-base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+base_url = "http://localhost:11434/v1"
 
 # LLM provider configuration (for ask command)
 # Note: LLM providers are not yet implemented

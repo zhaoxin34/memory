@@ -80,6 +80,14 @@ class EmbeddingProvider(ABC):
         """Return the maximum token length for this model."""
         pass
 
+    async def close(self) -> None:
+        """Close provider and release resources.
+
+        Override this method if the provider needs to clean up resources
+        (e.g., close HTTP clients, release model memory).
+        """
+        pass
+
 
 class LLMProvider(ABC):
     """Abstract interface for LLM providers.

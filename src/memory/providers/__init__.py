@@ -28,6 +28,10 @@ def create_embedding_provider(config: ProviderConfig) -> EmbeddingProvider:
     """
     provider_type = config.provider_type.lower()
 
+    # Ollama uses OpenAI-compatible API
+    if provider_type == "ollama":
+        provider_type = "openai"
+
     if provider_type == "openai":
         try:
             from memory.providers.openai import OpenAIEmbeddingProvider

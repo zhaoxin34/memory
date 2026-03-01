@@ -36,6 +36,7 @@ class EmbeddingProviderType(str, Enum):
     OPENAI = "openai"
     LOCAL = "local"
     MOCK = "mock"
+    OLLAMA = "ollama"  # OpenAI-compatible, uses base_url
 
 
 class LLMProviderType(str, Enum):
@@ -144,6 +145,7 @@ class LoggingConfig(BaseModel):
     )
     max_days: int = Field(default=30, gt=0, description="Number of days to retain log files")
     enable_file: bool = Field(default=True, description="Enable file logging")
+    enable_console: bool = Field(default=False, description="Enable console output (default: file-only)")
     audit: AuditLoggingConfig = Field(default_factory=AuditLoggingConfig)
 
     def model_post_init(self, __context: Any) -> None:

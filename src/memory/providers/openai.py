@@ -28,6 +28,10 @@ MODEL_METADATA = {
     "text-embedding-3-small": {"dimension": 1536, "max_tokens": 8191},
     "text-embedding-3-large": {"dimension": 3072, "max_tokens": 8191},
     "text-embedding-v4": {"dimension": 1536, "max_tokens": 8192},
+    # Ollama embedding models (OpenAI-compatible)
+    "nomic-embed-text": {"dimension": 768, "max_tokens": 8192},
+    "mxbai-embed-large": {"dimension": 1024, "max_tokens": 8192},
+    "bge-m3": {"dimension": 1024, "max_tokens": 8192},
 }
 
 # Default model if none specified
@@ -68,30 +72,40 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         import os
 
         api_key = config.api_key
-        if not api_key:
+
+        # Check if using custom base_url (e.g., Ollama, local server)
+        # In this case, API key is optional
+        has_custom_base_url = config.extra_params and "base_url" in config.extra_params
+
+        if not api_key and not has_custom_base_url:
             raise ProviderError(
-                message="API key is required",
+                message="API key is required when not using custom base_url",
                 provider="openai",
             )
 
-        # Check if api_key is an environment variable name or direct value
-        env_key = os.getenv(api_key)
-        if env_key:
-            # It's an environment variable name
-            api_key = env_key
-        elif not (
-            api_key.startswith("sk-") or
-            api_key.startswith("test-") or
-            api_key.startswith("invalid-") or
-            "key" in api_key.lower()
-        ):
-            # It might be an environment variable that wasn't expanded
-            # Only raise error if it doesn't look like a test key either
-            raise ProviderError(
-                message=f"Environment variable '{config.api_key}' not set or empty, "
-                       f"or provide API key directly (must start with 'sk-' or be a test key)",
-                provider="openai",
-            )
+        # Validate API key if provided and using default base_url
+        if api_key and not has_custom_base_url:
+            # Check if api_key is an environment variable name or direct value
+            env_key = os.getenv(api_key)
+            if env_key:
+                # It's an environment variable name
+                api_key = env_key
+            elif not (
+                api_key.startswith("sk-") or
+                api_key.startswith("test-") or
+                api_key.startswith("invalid-") or
+                "key" in api_key.lower()
+            ):
+                # It might be an environment variable that wasn't expanded
+                # Only raise error if it doesn't look like a test key either
+                raise ProviderError(
+                    message=f"Environment variable '{config.api_key}' not set or empty, "
+                           f"or provide API key directly (must start with 'sk-' or be a test key)",
+                    provider="openai",
+                )
+        elif has_custom_base_url:
+            # Use a placeholder for custom base_url (Ollama doesn't need it)
+            api_key = api_key or "not-needed"
 
         # Use default model if not specified
         self.model_name = config.model_name or DEFAULT_MODEL
