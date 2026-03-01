@@ -30,12 +30,12 @@ from rich.table import Table
 
 from memory.config.loader import get_default_config_path, load_config
 from memory.config.schema import AppConfig
-from memory.core.models import SearchResult
-from memory.observability.logging import (
+from memory.core.logging import (
     configure_from_config,
     get_audit_logger,
     get_logger,
 )
+from memory.entities import SearchResult
 
 app = typer.Typer(
     name="memory",
@@ -339,7 +339,7 @@ async def _ensure_default_repository(config: AppConfig):
     Returns:
         Tuple of (metadata_store, vector_store, repository)
     """
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     from memory.storage import create_metadata_store, create_vector_store
 
     # Create stores using factory functions
@@ -381,7 +381,7 @@ def ingest(
 async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, repository: str | None, force: bool, include: str | None = None):
     """Async implementation of ingest command."""
     # Import DocumentType at function level to avoid scope issues
-    from memory.core.models import Document, DocumentType
+    from memory.entities import Document, DocumentType
 
     # Load configuration
     config = _load_config(config_file)
@@ -397,7 +397,7 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
     repo_name = repository or config.default_repository
 
     # Get the repository object
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
     repo = await repo_manager.get_repository_by_name(repo_name)
 
@@ -691,7 +691,7 @@ async def _search_async(
         repo_name = repository or config.default_repository
 
         # Get the repository object
-        from memory.core.repository import RepositoryManager
+        from memory.service import RepositoryManager
         repo_manager = RepositoryManager(metadata_store, vector_store)
         repo = await repo_manager.get_repository_by_name(repo_name)
 
@@ -803,7 +803,7 @@ async def _ask_async(question: str, top_k: int, config_file: Path | None, reposi
     repo_name = repository or config.default_repository
 
     # Get the repository object
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
     repo = await repo_manager.get_repository_by_name(repo_name)
 
@@ -971,7 +971,7 @@ async def _chunk_async(
             metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
             # Get the repository object
-            from memory.core.repository import RepositoryManager
+            from memory.service import RepositoryManager
             repo_manager = RepositoryManager(metadata_store, vector_store)
             repository_obj = await repo_manager.get_repository_by_name(repo_name)
 
@@ -1025,8 +1025,8 @@ async def _chunk_async(
         from memory.core.markdown_chunking import (
             chunk_markdown_document,
         )
-        from memory.core.models import Document as DomainDocument
-        from memory.core.models import DocumentType
+        from memory.entities import Document as DomainDocument
+        from memory.entities import DocumentType
 
         chunking_config = ChunkingConfig(
             chunk_size=size if size is not None else config.chunking.chunk_size,
@@ -1205,7 +1205,7 @@ async def _repo_create_async(name: str, description: str | None, config_file: Pa
     metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
     # Create repository manager
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
 
     try:
@@ -1251,7 +1251,7 @@ async def _repo_list_async(config_file: Path | None):
     metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
     # Create repository manager
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
 
     try:
@@ -1308,7 +1308,7 @@ async def _repo_info_async(name: str, config_file: Path | None):
     metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
     # Create repository manager
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
 
     try:
@@ -1379,7 +1379,7 @@ async def _repo_delete_async(name: str, force: bool, config_file: Path | None):
     metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
     # Create repository manager
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
 
     try:
@@ -1428,7 +1428,7 @@ async def _repo_clear_async(name: str, dry_run: bool, yes: bool, config_file: Pa
     metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
 
     # Create repository manager
-    from memory.core.repository import RepositoryManager
+    from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
 
     try:
@@ -1528,7 +1528,7 @@ async def _doc_query_async(
 
     try:
         # Get repository
-        from memory.core.repository import RepositoryManager
+        from memory.service import RepositoryManager
         repo_manager = RepositoryManager(metadata_store, vector_store)
         repo = await repo_manager.get_repository_by_name(repo_name)
 
@@ -1662,7 +1662,7 @@ async def _doc_info_async(
 
     try:
         # Get repository
-        from memory.core.repository import RepositoryManager
+        from memory.service import RepositoryManager
         repo_manager = RepositoryManager(metadata_store, vector_store)
         repo = await repo_manager.get_repository_by_name(repo_name)
 
@@ -1794,7 +1794,7 @@ async def _doc_delete_async(
 
     try:
         # Get repository
-        from memory.core.repository import RepositoryManager
+        from memory.service import RepositoryManager
         repo_manager = RepositoryManager(metadata_store, vector_store)
         repo = await repo_manager.get_repository_by_name(repo_name)
 

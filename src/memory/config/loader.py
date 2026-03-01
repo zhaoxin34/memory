@@ -13,7 +13,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from memory.config.schema import AppConfig
-from memory.observability.logging import get_logger
+from memory.core.logging import get_logger
 
 logger = get_logger(__name__)
 

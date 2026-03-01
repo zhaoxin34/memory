@@ -10,7 +10,7 @@ from uuid import UUID
 
 import aiosqlite
 
-from memory.core.models import Chunk, Document, DocumentType, Repository
+from memory.entities import Chunk, Document, DocumentType, Repository
 from memory.storage.base import MetadataStore, StorageConfig, StorageError
 
 

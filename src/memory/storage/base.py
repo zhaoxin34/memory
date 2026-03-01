@@ -18,7 +18,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from memory.core.models import Chunk, Document, Embedding, Repository, SearchResult
+from memory.entities import Chunk, Document, Embedding, Repository, SearchResult
 
 
 class StorageConfig(BaseModel):

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 
-from memory.core.models import Chunk, Document, DocumentType, Repository
+from memory.entities import Chunk, Document, DocumentType, Repository
 from memory.storage.base import StorageConfig
 from memory.storage.sqlite import SQLiteMetadataStore
 

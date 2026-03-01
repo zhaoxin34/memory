@@ -50,6 +50,12 @@ uv run black src/
 
 CLI 使用方法请参见 [README.md#基本使用](README.md#基本使用)。
 
+### Git Hooks
+
+项目使用自定义 git hooks 目录 (`hooks/`)：
+- `pre-commit`: 在提交前运行 pytest 和 ruff check，任何失败都会阻止提交
+- 通过 `git config core.hooksPath hooks` 启用
+
 ## Architecture Overview
 
 架构图和项目结构请参见 [README.md#架构](README.md#架构)。
@@ -91,6 +97,24 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
 详细架构文档请参见 [docs/architecture.md](docs/architecture.md)。
 
 ## Key Components
+
+### Entities Layer (`src/memory/entities/`)
+- 纯领域模型，所有层共用
+- `document.py`: Document, DocumentType
+- `chunk.py`: Chunk
+- `repository.py`: Repository
+- `embedding.py`: Embedding
+- `search_result.py`: SearchResult
+
+### Service Layer (`src/memory/service/`)
+- 业务逻辑编排层
+- `repository.py`: RepositoryManager - 仓库生命周期管理
+  - `create_repository()`: 创建仓库（包含名称验证和重复检查）
+  - `get_repository()`, `get_repository_by_name()`: 检索仓库
+  - `list_repositories()`: 列出所有仓库
+  - `delete_repository()`: 删除仓库（级联删除文档、分块、嵌入）
+  - `ensure_default_repository()`: 确保默认仓库存在
+- `stores.py`: initialize_stores() - 存储初始化辅助函数
 
 ### Core Layer (`src/memory/core/`)
 - `models.py`: 核心领域模型（Repository, Document, Chunk, Embedding, SearchResult）
@@ -181,16 +205,13 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
   - 可通过 `MEMORY_DEFAULT_REPOSITORY` 环境变量覆盖
 - `loader.py`: 配置加载逻辑，支持 TOML 文件和多环境配置
 
-### Observability Layer (`src/memory/observability/`)
-- `logging.py`: 结构化日志配置（使用 structlog）
-
 ## Extension Points
 
 扩展系统的基本步骤请参见 [README.md#扩展系统](README.md#扩展系统)。
 
 ### 添加新的文档类型
-1. 在 `core/models.py` 的 `DocumentType` 枚举中添加新类型
-2. 在 `pipelines/ingestion.py` 的 `_detect_document_type()` 中添加检测逻辑
+1. 在 `entities/document.py` 的 `DocumentType` 枚举中添加新类型
+2. 在 `pipelines/ingestion.py` 中添加检测逻辑
 3. 如需特殊解析，在 `core/` 中添加文档加载器
 
 ### 添加新的分块策略

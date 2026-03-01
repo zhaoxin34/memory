@@ -10,7 +10,7 @@ from memory.core.markdown_chunking import (
     parse_markdown_sections,
     smart_merge_chunks,
 )
-from memory.core.models import Document, DocumentType
+from memory.entities import Document, DocumentType
 
 
 class TestMarkdownParsing:

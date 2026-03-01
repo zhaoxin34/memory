@@ -14,8 +14,8 @@ import re
 import signal
 
 from memory.config.schema import ChunkingConfig
-from memory.core.models import Chunk, Document
-from memory.observability.logging import get_logger
+from memory.core.logging import get_logger
+from memory.entities import Chunk, Document
 
 logger = get_logger(__name__)
 

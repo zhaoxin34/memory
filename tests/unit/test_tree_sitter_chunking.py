@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 
 from memory.config.schema import ChunkingConfig
-from memory.core.models import Document, DocumentType
 from memory.core.tree_sitter_chunking import (
     SemanticNode,
     _check_tree_sitter_available,
@@ -15,6 +14,7 @@ from memory.core.tree_sitter_chunking import (
     parse_markdown_syntax_tree,
     tree_sitter_chunk_document,
 )
+from memory.entities import Document, DocumentType
 
 
 class TestTreeSitterAvailability:

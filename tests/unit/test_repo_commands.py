@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 import typer
 
-from memory.core.models import Document, DocumentType, Repository
+from memory.entities import Document, DocumentType, Repository
 from memory.interfaces.cli import (
     _repo_clear_async,
     _repo_create_async,

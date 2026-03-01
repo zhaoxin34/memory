@@ -17,8 +17,8 @@ Specialized chunking:
 from collections.abc import Iterator
 
 from memory.config.schema import ChunkingConfig
-from memory.core.models import Chunk, Document, DocumentType
-from memory.observability.logging import get_logger
+from memory.core.logging import get_logger
+from memory.entities import Chunk, Document, DocumentType
 
 logger = get_logger(__name__)
 

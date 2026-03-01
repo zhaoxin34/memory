@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 
-from memory.core.models import Chunk, Document, DocumentType, Embedding, SearchResult
+from memory.entities import Chunk, Document, DocumentType, Embedding, SearchResult
 
 
 def test_document_creation():

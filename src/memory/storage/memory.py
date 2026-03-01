@@ -8,7 +8,7 @@ These implementations store all data in memory and are useful for:
 
 from uuid import UUID
 
-from memory.core.models import Chunk, Document, Embedding, Repository, SearchResult
+from memory.entities import Chunk, Document, Embedding, Repository, SearchResult
 from memory.storage.base import MetadataStore, StorageConfig, VectorStore
 
 

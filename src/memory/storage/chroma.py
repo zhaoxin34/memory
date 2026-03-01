@@ -20,7 +20,7 @@ from uuid import UUID
 
 import structlog
 
-from memory.core.models import Chunk, Embedding, SearchResult
+from memory.entities import Chunk, Embedding, SearchResult
 from memory.storage.base import StorageConfig, StorageError, VectorStore
 
 logger = structlog.get_logger(__name__)

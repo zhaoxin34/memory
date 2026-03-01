@@ -18,8 +18,8 @@ from uuid import UUID
 
 from memory.config.schema import AppConfig
 from memory.core.chunking import create_chunks
-from memory.core.models import Document, DocumentType, Embedding
-from memory.observability.logging import get_logger
+from memory.core.logging import get_logger
+from memory.entities import Document, DocumentType, Embedding
 from memory.providers.base import EmbeddingProvider
 from memory.storage.base import MetadataStore, VectorStore
 

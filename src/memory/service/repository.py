@@ -1,4 +1,4 @@
-"""Repository management logic.
+"""Repository management service.
 
 Provides high-level operations for managing repositories including:
 - Creating repositories with validation
@@ -9,8 +9,8 @@ Provides high-level operations for managing repositories including:
 
 from uuid import UUID
 
-from memory.core.models import Repository
-from memory.observability.logging import get_logger
+from memory.core.logging import get_logger
+from memory.entities import Repository
 from memory.storage.base import MetadataStore, VectorStore
 
 logger = get_logger(__name__)

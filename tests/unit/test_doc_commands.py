@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 import typer
 
-from memory.core.models import Document, DocumentType
+from memory.entities import Document, DocumentType
 from memory.interfaces.cli import _doc_delete_async, _doc_info_async, _doc_query_async
 
 
@@ -148,7 +148,7 @@ class TestDocQueryCommand:
         mock_ensure.return_value = (metadata_store, vector_store, default_repo)
 
         # Mock RepositoryManager to return None for nonexistent repo
-        with patch("memory.core.repository.RepositoryManager") as mock_repo_manager_class:
+        with patch("memory.service.RepositoryManager") as mock_repo_manager_class:
             mock_repo_manager = AsyncMock()
             mock_repo_manager.get_repository_by_name.return_value = None
             mock_repo_manager_class.return_value = mock_repo_manager

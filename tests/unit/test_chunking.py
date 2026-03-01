@@ -6,7 +6,7 @@ import pytest
 
 from memory.config.schema import ChunkingConfig
 from memory.core.chunking import chunk_text, create_chunks
-from memory.core.models import Document, DocumentType
+from memory.entities import Document, DocumentType
 
 
 class TestChunkText:

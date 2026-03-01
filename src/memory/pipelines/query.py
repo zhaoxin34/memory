@@ -17,8 +17,8 @@ from typing import Optional
 from uuid import UUID
 
 from memory.config.schema import AppConfig
-from memory.core.models import SearchResult
-from memory.observability.logging import get_logger
+from memory.core.logging import get_logger
+from memory.entities import SearchResult
 from memory.providers.base import EmbeddingProvider, LLMProvider
 from memory.storage.base import MetadataStore, VectorStore
 

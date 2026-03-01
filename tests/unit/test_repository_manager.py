@@ -4,8 +4,8 @@ from uuid import uuid4
 
 import pytest
 
-from memory.core.models import Document, DocumentType
-from memory.core.repository import RepositoryManager, RepositoryNotFoundError
+from memory.entities import Document, DocumentType
+from memory.service import RepositoryManager, RepositoryNotFoundError
 from memory.storage.base import StorageConfig
 from memory.storage.memory import InMemoryMetadataStore, InMemoryVectorStore
 
@@ -60,7 +60,7 @@ class TestRepositoryManager:
         )
 
         # Add a document
-        from memory.core.models import Chunk, Embedding
+        from memory.entities import Chunk, Embedding
 
         doc = Document(
             repository_id=repository.id,
@@ -150,7 +150,7 @@ class TestRepositoryManager:
         )
 
         # Add multiple documents
-        from memory.core.models import Chunk, Embedding
+        from memory.entities import Chunk, Embedding
 
         docs = [
             Document(
@@ -222,7 +222,7 @@ class TestRepositoryManager:
         )
 
         # Add document to repo1
-        from memory.core.models import Chunk, Embedding
+        from memory.entities import Chunk, Embedding
 
         doc1 = Document(
             repository_id=repo1.id,

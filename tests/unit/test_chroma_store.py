@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from memory.core.models import Embedding
+from memory.entities import Embedding
 from memory.storage.base import StorageConfig
 from memory.storage.chroma import ChromaVectorStore
 
@@ -60,7 +60,7 @@ class TestChromaVectorStore:
         """Test adding a single embedding."""
         from uuid import UUID
 
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         chunk = Chunk(
             repository_id=UUID("12345678-1234-5678-1234-567812345678"),
@@ -86,7 +86,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_add_embeddings_batch(self, store):
         """Test adding multiple embeddings."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Create chunks for the embeddings
         chunks = [
@@ -120,7 +120,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_search(self, store):
         """Test similarity search."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Use same repository_id for all chunks to store them in the same collection
         repository_id = uuid4()
@@ -166,7 +166,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_search_with_repository_filter(self, store):
         """Test search with repository filtering."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Add embeddings to different repositories
         repo_a_id = uuid4()
@@ -209,7 +209,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_delete_by_chunk_id(self, store):
         """Test deleting by chunk ID."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Use same repository_id for all chunks to store them in the same collection
         repository_id = uuid4()
@@ -250,7 +250,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_delete_by_document_id(self, store):
         """Test deleting by document ID."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Create document IDs
         doc_ids = [uuid4(), uuid4()]
@@ -290,7 +290,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_delete_by_repository(self, store):
         """Test deleting all embeddings from a repository."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Add embeddings to multiple repositories
         repo_a_id = uuid4()
@@ -330,7 +330,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_count(self, store):
         """Test counting embeddings."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Initially empty
         count = await store.count()
@@ -369,7 +369,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_repository_isolation(self, store):
         """Test that repositories are properly isolated."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Add embeddings to different repositories
         repo_ids = [uuid4(), uuid4(), uuid4()]
@@ -415,7 +415,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_collection_name_sanitization(self, temp_dir):
         """Test that collection names are properly sanitized."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Test with invalid characters
         store = ChromaVectorStore(
@@ -453,7 +453,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_persistence(self, temp_dir):
         """Test that data persists across store instances."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Create store and add data
         store1 = ChromaVectorStore(
@@ -509,7 +509,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_context_manager(self, temp_dir):
         """Test using store as context manager."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         async with ChromaVectorStore(
             StorageConfig(
@@ -554,7 +554,7 @@ class TestChromaVectorStore:
     @pytest.mark.asyncio
     async def test_large_batch(self, store):
         """Test adding a large batch of embeddings."""
-        from memory.core.models import Chunk
+        from memory.entities import Chunk
 
         # Use same repository_id for all chunks to store them in the same collection
         repository_id = uuid4()

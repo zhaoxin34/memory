@@ -15,19 +15,46 @@ Memory is designed as a modular, production-grade knowledge base system. The arc
 
 ## System Layers
 
-### 1. Core Layer (`core/`)
+### 1. Entities Layer (`entities/`)
 
-**Purpose**: Domain models and business logic
+**Purpose**: Pure domain models - foundational data structures used by all layers
 
 **Components**:
-- `models.py`: Core domain entities (Document, Chunk, Embedding, SearchResult)
+- `document.py`: Document, DocumentType
+- `chunk.py`: Chunk
+- `repository.py`: Repository
+- `embedding.py`: Embedding
+- `search_result.py`: SearchResult
+
+**Why it exists**: Provides pure domain entities without business logic, avoiding naming conflicts with LLM "model" terminology
+
+**How to extend**: Add new entity files as needed
+
+### 2. Service Layer (`service/`)
+
+**Purpose**: Business logic orchestration
+
+**Components**:
+- `repository.py`: RepositoryManager - repository lifecycle management
+- `stores.py`: initialize_stores() - store initialization helper
+
+**Why it exists**: Coordinates business workflows, separates business logic from infrastructure
+
+**Current status**: ✅ Implemented (2026-03-01)
+
+### 3. Core Layer (`core/`)
+
+**Purpose**: Technical utilities and chunking implementations
+
+**Components**:
+- `logging.py`: Structured logging setup
 - `chunking.py`: Text chunking logic
+- `markdown_chunking.py`: Markdown-aware chunking
+- `tree_sitter_chunking.py`: Tree-sitter based chunking
 
-**Why it exists**: Provides stable domain model that other layers depend on
+**Why it exists**: Provides technical implementations used by pipelines
 
-**How to extend**: Add new domain entities or business logic here
-
-### 2. Providers Layer (`providers/`)
+### 4. Providers Layer (`providers/`)
 
 **Purpose**: Abstract interfaces for external services
 
@@ -52,7 +79,7 @@ class MyEmbeddingProvider(EmbeddingProvider):
         pass
 ```
 
-### 3. Storage Layer (`storage/`)
+### 5. Storage Layer (`storage/`)
 
 **Purpose**: Abstract interfaces for data persistence
 
@@ -67,7 +94,7 @@ class MyEmbeddingProvider(EmbeddingProvider):
 3. Register in config system
 4. Add optional dependencies to pyproject.toml
 
-### 4. Pipelines Layer (`pipelines/`)
+### 6. Pipelines Layer (`pipelines/`)
 
 **Purpose**: Orchestrate multi-step operations
 
@@ -79,7 +106,7 @@ class MyEmbeddingProvider(EmbeddingProvider):
 
 **How to extend**: Add new pipeline stages or create new pipelines for different workflows
 
-### 5. Interfaces Layer (`interfaces/`)
+### 7. Interfaces Layer (`interfaces/`)
 
 **Purpose**: User-facing interfaces
 
@@ -90,7 +117,7 @@ class MyEmbeddingProvider(EmbeddingProvider):
 
 **How to extend**: Add new commands or create new interfaces (API, Web UI)
 
-### 6. Config Layer (`config/`)
+### 8. Config Layer (`config/`)
 
 **Purpose**: Configuration management
 
@@ -102,16 +129,57 @@ class MyEmbeddingProvider(EmbeddingProvider):
 
 **How to extend**: Add new configuration fields or profiles
 
-### 7. Observability Layer (`observability/`)
+## Layer Dependencies
 
-**Purpose**: Logging, metrics, and monitoring
+```
+┌─────────────────────────────────────────────────────────────┐
+│  interfaces/ (cli.py)                                       │
+│  - Parameter parsing                                        │
+│  - User interaction                                         │
+│  - Output formatting                                        │
+│  Uses entities for input/output                            │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ calls
+┌──────────────────────▼──────────────────────────────────────┐
+│  service/                                                   │
+│  - Business logic orchestration                            │
+│  - Repository management                                   │
+│  - Coordinates pipelines                                    │
+│  Uses entities for business operations                     │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ calls
+┌──────────────────────▼──────────────────────────────────────┐
+│  pipelines/                                                 │
+│  - IngestionPipeline                                       │
+│  - QueryPipeline                                           │
+│  - Technical implementation details                        │
+│  Uses entities as data containers                          │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ receives injected
+┌──────────────────────▼──────────────────────────────────────┐
+│  storage/                                                   │
+│  - VectorStore                                             │
+│  - MetadataStore                                           │
+│  Uses entities for persistence                             │
+└─────────────────────────────────────────────────────────────┘
 
-**Components**:
-- `logging.py`: Structured logging setup
+                         ↑
+           ┌─────────────┴─────────────┐
+           │    entities/              │  ← Foundation (used by ALL layers)
+           │  - Document               │
+           │  - Chunk                  │
+           │  - Repository             │
+           │  - Embedding              │
+           │  - SearchResult           │
+           │  (Pure domain models)    │
+           └───────────────────────────┘
 
-**Why it exists**: Provides consistent logging across the system
-
-**How to extend**: Add metrics collection or tracing
+┌─────────────────────────────────────────────────────────────┐
+│  core/ (technical utilities)                                 │
+│  - logging.py                                              │
+│  - chunking.py, markdown_chunking.py, tree_sitter_...    │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Data Flow
 
@@ -133,29 +201,36 @@ File → IngestionPipeline → Document → Chunking → Chunks
 
 ```
 Query → QueryPipeline → EmbeddingProvider → Query Vector
-                                                ↓
-                                          VectorStore.search()
-                                                ↓
-                                          SearchResults
-                                                ↓
-                                          LLMProvider
-                                                ↓
-                                            Answer
+                                            ↓
+                                      VectorStore.search()
+                                            ↓
+                                      SearchResults
+                                            ↓
+                                      LLMProvider
+                                            ↓
+                                          Answer
 ```
+
+## Repository Isolation Mechanism
+
+- Each Document and Chunk has `repository_id` field
+- VectorStore creates separate collection per repository: `{collection_name}_{repository_name}`
+- Search can filter by `repository_id`
+- Deleting repository cascades to delete all documents, chunks, and embeddings
 
 ## Extension Points
 
 ### Adding a New Document Type
 
-1. Add enum value to `DocumentType` in `core/models.py`
-2. Update `_detect_document_type()` in `pipelines/ingestion.py`
+1. Add enum value to `DocumentType` in `entities/document.py`
+2. Update detection logic in `pipelines/ingestion.py`
 3. Add document parser if needed
 
 ### Adding a New Chunking Strategy
 
-1. Create new chunking function in `core/chunking.py`
-2. Add configuration options to `ChunkingConfig`
-3. Update `create_chunks()` to use new strategy
+1. Create new chunking function in `core/`
+2. Add configuration options to `config/schema.py`
+3. Update pipeline to use new strategy
 
 ### Tree-sitter Markdown Chunking
 
@@ -175,11 +250,8 @@ uv sync --extra tree-sitter
 **Configuration:**
 ```toml
 [chunking]
-# Target size of each chunk in characters (default: 1000)
 chunk_size = 1000
-# Overlap between chunks to preserve context (default: 200)
 chunk_overlap = 200
-# Minimum chunk size, smaller chunks are filtered (default: 100)
 min_chunk_size = 100
 ```
 
@@ -194,11 +266,18 @@ min_chunk_size = 100
 2. Regex-based Markdown chunking (fallback)
 3. Fixed-size chunking (last resort)
 
-### Adding Observability
+### Adding a New Provider
 
-1. Add metrics collection in `observability/`
-2. Inject metrics collectors into pipelines
-3. Export metrics to monitoring system
+1. Create new provider class in `providers/` inheriting from base
+2. Implement all abstract methods
+3. Register in config system
+4. Add optional dependencies to pyproject.toml
+
+### Adding a New Storage Backend
+
+1. Create new store class in `storage/` inheriting from base
+2. Implement all abstract methods
+3. Register in config system
 
 ## Testing Strategy
 
@@ -226,6 +305,35 @@ The system supports multiple deployment profiles:
 - **cloud**: Cloud-hosted with managed services
 
 Configure via `[profiles.<name>]` in config.toml
+
+## Migration Notes (2026-03-01)
+
+### Recent Changes
+
+1. **Created `entities/` layer**: Domain models moved from `core/models.py` to separate files
+2. **Created `service/` layer**: Business logic (RepositoryManager) moved from `core/`
+3. **Moved logging to core**: `logging.py` moved from `observability/` to `core/`
+4. **Removed observability/**: Directory deleted, logging now in `core/`
+
+### Backward Compatibility
+
+- Old imports still work via re-exports:
+  - `memory.core.models` → re-exports from `memory.entities`
+  - `memory.core.repository` → re-exports from `memory.service`
+
+### Project Structure (2026-03-01)
+
+```
+src/memory/
+├── config/         # Configuration management
+├── core/          # Technical utilities (logging, chunking)
+├── entities/      # Domain models (Document, Chunk, Repository, etc.)
+├── interfaces/   # CLI interface
+├── pipelines/    # Business pipelines (ingestion, query)
+├── providers/    # External services (embedding, LLM)
+├── service/      # Business logic (RepositoryManager)
+└── storage/      # Data persistence (VectorStore, MetadataStore)
+```
 
 ## Future Enhancements
 
