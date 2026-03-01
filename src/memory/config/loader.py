@@ -66,7 +66,6 @@ def load_config(
     if config_path.exists():
         with open(config_path, "rb") as f:
             config_data = tomllib.load(f)
-        logger.info("loaded_config_file", path=str(config_path))
 
         # Apply profile if specified
         if profile and profile in config_data.get("profiles", {}):
@@ -74,9 +73,6 @@ def load_config(
             # Merge profile data into config (profile overrides base)
             config_data = {**config_data, **profile_data}
             logger.info("applied_profile", profile=profile)
-
-        # Substitute environment variables in config data
-        logger.debug("substituted_env_vars_in_config")
 
         # Remove profiles field before passing to AppConfig
         config_data.pop("profiles", None)
@@ -86,13 +82,6 @@ def load_config(
 
     # Create config (environment variables override file config)
     config = AppConfig.model_validate(config_data)
-    logger.info(
-        "config_loaded",
-        log_level=config.log_level,
-        embedding_provider=config.embedding.provider,
-        llm_provider=config.llm.provider,
-        vector_store=config.vector_store.store_type,
-    )
 
     return config
 

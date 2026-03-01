@@ -24,7 +24,10 @@
       "Bash(tail:*)",
       "Bash(git commit:*)",
       "Bash(ruff check:*)",
-      "Bash(chmod +x:*)"
+      "Bash(chmod +x:*)",
+      "Bash(TRANSFORMERS_NO_ADVISORY_WARNINGS=1 TRANSFORMERS_VERBOSITY=error memory search:*)",
+      "Bash(ollama pull:*)",
+      "Bash(ollama list:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

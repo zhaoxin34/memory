@@ -130,6 +130,7 @@ def configure_logging(
     log_dir: Path | None = None,
     max_days: int = 30,
     enable_file: bool = True,
+    enable_console: bool = False,
 ) -> None:
     """Configure structured logging for the application.
 
@@ -139,13 +140,15 @@ def configure_logging(
         log_dir: Directory for log files (if None, file logging is disabled)
         max_days: Number of days to retain log files
         enable_file: Whether to enable file logging
+        enable_console: Whether to enable console output (default: False, file-only)
     """
-    # Configure standard library logging
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=getattr(logging, level.upper()),
-    )
+    # Configure standard library logging (console-only mode or file-only mode)
+    if enable_console:
+        logging.basicConfig(
+            format="%(message)s",
+            stream=sys.stdout,
+            level=getattr(logging, level.upper()),
+        )
 
     # Build processor chain
     processors: list[Processor] = [
@@ -206,11 +209,12 @@ def configure_logging(
                 cache_logger_on_first_use=True,
             )
 
-            # Also configure the root logger handler for console output
-            if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in root_logger.handlers):
-                console_handler = logging.StreamHandler(sys.stdout)
-                console_handler.setFormatter(logging.Formatter("%(message)s"))
-                root_logger.addHandler(console_handler)
+            # Also configure the root logger handler for console output (only if enabled)
+            if enable_console:
+                if not any(isinstance(h, logging.StreamHandler) and not isinstance(h, logging.FileHandler) for h in root_logger.handlers):
+                    console_handler = logging.StreamHandler(sys.stdout)
+                    console_handler.setFormatter(logging.Formatter("%(message)s"))
+                    root_logger.addHandler(console_handler)
 
             return  # Early return after configuring
         except (OSError, PermissionError) as e:
@@ -349,4 +353,5 @@ def configure_from_config(config: LoggingConfig) -> None:
         log_dir=config.log_dir if config.enable_file else None,
         max_days=config.max_days,
         enable_file=config.enable_file,
+        enable_console=config.enable_console,
     )

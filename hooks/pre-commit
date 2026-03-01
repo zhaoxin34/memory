@@ -7,7 +7,7 @@ echo "Running pre-commit checks..."
 
 # Run ruff check
 echo "Running ruff check..."
-uv run ruff check src/ tests/
+uv run ruff check --fix src/ tests/
 
 # Run pytest
 echo "Running pytest..."
