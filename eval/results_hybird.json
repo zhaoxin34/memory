@@ -10,12 +10,12 @@
     ],
     "scores": [
       0.6831403840504959,
-      0.461905777170073,
+      0.4619057517359443,
       0.44398080710792026,
       0.44030975656330495,
       0.43794498404263565
     ],
-    "avg_score": 0.4934563417868859,
+    "avg_score": 0.4934563367000602,
     "has_results": true,
     "ground_truth": "将五花肉切成3-4厘米见方的块状。冷水下锅，加入料酒和姜片焯水，去除腥味",
     "keyword_recall": 1.0,
@@ -31,13 +31,13 @@
       "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n"
     ],
     "scores": [
-      0.5705447361914955,
+      0.5705447167889148,
       0.4443707529461796,
       0.43841916712458323,
       0.4246053412877456,
       0.41284657060001334
     ],
-    "avg_score": 0.4581573136300035,
+    "avg_score": 0.4581573097494873,
     "has_results": true,
     "ground_truth": "红烧肉是中国传统名菜，色泽红亮，口感软糯，肥而不腻",
     "keyword_recall": 1.0,
@@ -53,13 +53,13 @@
       "# 家常红烧肉制作指南\n\n\n## 简介\n\n\n红烧肉是中国传统名菜，色泽红亮，口感软糯，肥而不腻。\n\n\n## 主要食材\n\n\n五花肉：500克\n\n\n生姜：3片\n\n\n大蒜：3瓣\n\n\n八角：2个\n\n\n冰糖：30克\n\n\n生抽：2汤匙\n\n\n老抽：1汤匙\n\n\n料酒：1汤匙\n\n\n盐：适量\n\n\n## 制作步骤\n\n\n### 1. 处理五花肉\n\n\n将五花肉切成3-4厘米见方的块状。冷水下锅，加入料酒和姜片焯水，去除腥味。\n\n\n### 2. 炒糖色\n\n\n锅中放少许油，放入冰糖小火慢炒。炒至冰糖融化变成琥珀色时，迅速放入五花肉翻炒上色。\n\n\n### 3. 炖煮\n\n\n加入生姜、大蒜、八角，倒入生抽和老抽。加入开水没过肉块，大火烧开后转小火炖煮60-90分钟。\n\n\n### 4. 收汁\n\n\n待肉质软烂后，大火收汁。不断翻炒使肉块均匀上色，直至汤汁浓稠。\n\n\n## 技巧要点\n\n\n选择肥瘦相间的五花肉，口感最佳\n\n\n炒糖色时要小火慢炒，焦了会发苦\n\n\n炖煮时一定要加开水，避免肉质变柴\n\n\n最后收汁要不断翻动，防止糊锅\n\n\n## 营养价值\n\n\n红烧肉富含蛋白质和脂肪，适量食用可以补充能量。但血脂较高者应适量食用。\n"
     ],
     "scores": [
-      0.41338491432814517,
+      0.41338489395681793,
       0.3978607381555606,
-      0.3891242550965297,
+      0.3891242731469253,
       0.38826552956496213,
       0.38806357082724735
     ],
-    "avg_score": 0.395339801594489,
+    "avg_score": 0.3953398011303027,
     "has_results": true,
     "ground_truth": "宋江是梁山一百单八将之首，为人仗义疏财",
     "keyword_recall": 0.0,
@@ -76,12 +76,12 @@
     ],
     "scores": [
       0.5116653750919122,
-      0.5007840600787472,
+      0.5007840451308162,
       0.4669357939682146,
       0.45961313547950755,
-      0.44844230783931854
+      0.448442331812368
     ],
-    "avg_score": 0.47748813449154,
+    "avg_score": 0.47748813629656367,
     "has_results": true,
     "ground_truth": "改进无头模式启动性能",
     "keyword_recall": 0.0,
@@ -97,13 +97,13 @@
       "```python\nfrom typing import List, Dict, Set, Tuple\n\nnumbers: List[int] = [1, 2, 3]\nscores: Dict[str, int] = {\"Alice\": 90, \"Bob\": 85}\nunique_items: Set[int] = {1, 2, 3}\ncoordinates: Tuple[int, int] = (10, 20)\n```\n\n\n```python\nfrom typing import Optional, Union\n\ndef find_user(user_id: int) -> Optional[dict]:\n    # 可能返回 None\n    pass\n\ndef process(value: Union[str, int]) -> str:\n    # 处理多种类型\n    return str(value)\n```\n\n\n```python\nfrom typing import TypeVar, Generic\n\nT = TypeVar('T')\n\nclass Stack(Generic[T]):\n    def __init__(self) -> None:\n        self._items: List[T] = []\n\n    def push(self, item: T) -> None:\n        self._items.append(item)\n\n    def pop(self) -> T:\n        return self._items.pop()\n```\n\n\n```python\nfrom pydantic import BaseModel\n\nclass User(BaseModel):\n    name: str\n    age: int\n    email: str\n```\n"
     ],
     "scores": [
-      0.6092454503092779,
-      0.4605595920532765,
+      0.6092454724333318,
+      0.460559566767183,
       0.4593942547021793,
       0.4543122688458499,
       0.45222091600874853
     ],
-    "avg_score": 0.4871464963838664,
+    "avg_score": 0.4871464957514585,
     "has_results": true,
     "ground_truth": "基本面分析、技术分析",
     "keyword_recall": 1.0,
@@ -119,13 +119,13 @@
       "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n"
     ],
     "scores": [
-      0.5806737230577455,
+      0.5806737431553579,
       0.4699965273875275,
       0.45508708768791667,
-      0.43439081983512157,
-      0.4276118984531032
+      0.4343908423293655,
+      0.42761185485780895
     ],
-    "avg_score": 0.47355201128428287,
+    "avg_score": 0.4735520110835953,
     "has_results": true,
     "ground_truth": "一次一个远程会话,终端必须保持打开,网络中断",
     "keyword_recall": 0.2,
@@ -141,13 +141,13 @@
       "# start yabai\n# 写入sudo权限\n# 创建配置文件\n\n```json\n{\n  \"builder\": {\n    \"gc\": {\n      \"defaultKeepStorage\": \"20GB\",\n      \"enabled\": true\n    }\n  },\n  \"experimental\": false,\n  \"registry-mirrors\": [\n    \"https://docker.registry.cyou\",\n    \"https://docker-cf.registry.cyou\",\n    \"https://dockercf.jsdelivr.fyi\",\n    \"https://docker.jsdelivr.fyi\",\n    \"https://dockertest.jsdelivr.fyi\",\n    \"https://mirror.aliyuncs.com\",\n    \"https://dockerproxy.com\",\n    \"https://mirror.baidubce.com\",\n    \"https://docker.m.daocloud.io\",\n    \"https://docker.nju.edu.cn\",\n    \"https://docker.mirrors.sjtug.sjtu.edu.cn\",\n    \"https://docker.mirrors.ustc.edu.cn\",\n    \"https://mirror.iscas.ac.cn\",\n    \"https://docker.rainbond.cc\"\n  ]\n}\n```\n\n\n打开到 docker.destop > setup > resource\n配置cpu、内存\nDisk Image Location\n/Volumes/data/working/docker/data/DockerDesktop\n\n\n```bash\nbrew install mysql-client\n\n# 把下面的命令放到.zshrc中\nexport PATH=\"/opt/homebrew/opt/mysql-client/bin:$PATH\"\n```\n"
     ],
     "scores": [
-      0.537047407259922,
+      0.5370474244510892,
       0.5184793783099106,
       0.5073700010016021,
       0.49701784246493974,
-      0.4874054790677773
+      0.4874054507479313
     ],
-    "avg_score": 0.5094640216208304,
+    "avg_score": 0.5094640193950946,
     "has_results": true,
     "ground_truth": "brew install --cask font-noto-sans-mono-cjk-sc",
     "keyword_recall": 0.6,

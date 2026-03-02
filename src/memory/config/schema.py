@@ -12,7 +12,7 @@ How to extend:
 3. Update default.toml with new settings
 """
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class LogLevel(str, Enum):
+class LogLevel(StrEnum):
     """Logging levels."""
 
     DEBUG = "DEBUG"
@@ -30,7 +30,7 @@ class LogLevel(str, Enum):
     CRITICAL = "CRITICAL"
 
 
-class EmbeddingProviderType(str, Enum):
+class EmbeddingProviderType(StrEnum):
     """Supported embedding providers."""
 
     OPENAI = "openai"
@@ -39,7 +39,7 @@ class EmbeddingProviderType(str, Enum):
     OLLAMA = "ollama"  # OpenAI-compatible, uses base_url
 
 
-class LLMProviderType(str, Enum):
+class LLMProviderType(StrEnum):
     """Supported LLM providers."""
 
     OPENAI = "openai"
@@ -47,7 +47,7 @@ class LLMProviderType(str, Enum):
     MOCK = "mock"
 
 
-class VectorStoreType(str, Enum):
+class VectorStoreType(StrEnum):
     """Supported vector stores."""
 
     CHROMA = "chroma"
@@ -56,7 +56,7 @@ class VectorStoreType(str, Enum):
     MEMORY = "memory"
 
 
-class MetadataStoreType(str, Enum):
+class MetadataStoreType(StrEnum):
     """Supported metadata stores."""
 
     SQLITE = "sqlite"

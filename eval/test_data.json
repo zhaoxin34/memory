@@ -26,5 +26,9 @@
   {
     "question": "如何安装google等宽字体：",
     "ground_truth": "brew install --cask font-noto-sans-mono-cjk-sc"
+  },
+  {
+    "question": "怎么可以解决 command not found: mmdc？",
+    "ground_truth": "npm install -g @mermaid-js/mermaid-cli && brew install imagemagick"
   }
 ]

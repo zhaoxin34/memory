@@ -18,7 +18,7 @@ import re
 import sys
 import time
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 from functools import wraps
 from pathlib import Path
 from typing import Any
@@ -226,7 +226,7 @@ def audit_command(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-class OutputFormat(str, Enum):
+class OutputFormat(StrEnum):
     """Output format options for search results."""
 
     TEXT = "text"
