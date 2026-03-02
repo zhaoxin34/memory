@@ -12,7 +12,7 @@
     "ground_truth": "宋江是梁山一百单八将之首，为人仗义疏财"
   },
   {
-    "question": "claude code2.1.51做了哪些变更?",
+    "question": "claude code 2.1.51 做了哪些变更, 对性能优化有帮助?",
     "ground_truth": "改进无头模式启动性能"
   },
   {
