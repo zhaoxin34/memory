@@ -85,6 +85,23 @@ class LLMConfig(BaseModel):
     extra_params: dict[str, Any] = Field(default_factory=dict)
 
 
+class BM25Config(BaseModel):
+    """BM25 configuration for keyword-based search."""
+
+    enabled: bool = Field(default=False, description="Enable BM25 sparse embedding generation")
+    k: float = Field(default=1.2, description="BM25 k1 parameter")
+    b: float = Field(default=0.75, description="BM25 b parameter")
+
+
+class HybridSearchConfig(BaseModel):
+    """Hybrid search configuration combining vector and BM25 search."""
+
+    enabled: bool = Field(default=False, description="Enable hybrid search (vector + BM25)")
+    vector_weight: float = Field(default=0.7, ge=0.0, le=1.0, description="Weight for vector search results")
+    bm25_weight: float = Field(default=0.3, ge=0.0, le=1.0, description="Weight for BM25 search results")
+    rrf_k: int = Field(default=60, gt=0, description="RRF k parameter for rank fusion")
+
+
 class VectorStoreConfig(BaseModel):
     """Vector store configuration."""
 
@@ -93,6 +110,8 @@ class VectorStoreConfig(BaseModel):
     collection_name: str = "memory"
     persist_directory: Path | None = None
     extra_params: dict[str, Any] = Field(default_factory=dict)
+    bm25: BM25Config = Field(default_factory=BM25Config)
+    hybrid_search: HybridSearchConfig = Field(default_factory=HybridSearchConfig)
 
     def model_post_init(self, __context: Any) -> None:
         """Expand ~ in paths."""

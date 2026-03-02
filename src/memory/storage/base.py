@@ -134,6 +134,37 @@ class VectorStore(ABC):
         """Close connections and cleanup resources."""
         pass
 
+    async def hybrid_search(
+        self,
+        query_text: str,
+        query_vector: list[float],
+        top_k: int = 10,
+        repository_id: UUID | None = None,
+        filters: dict | None = None,
+    ) -> list[SearchResult]:
+        """Optional hybrid search combining vector and BM25.
+
+        This method raises NotImplementedError by default.
+        Override in subclasses to provide hybrid search capability.
+
+        Args:
+            query_text: Original query text for BM25 search
+            query_vector: Query embedding vector for vector search
+            top_k: Number of results to return
+            repository_id: Optional repository ID to filter results
+            filters: Optional metadata filters
+
+        Returns:
+            List of search results with combined scores
+
+        Raises:
+            NotImplementedError: If hybrid search is not supported
+        """
+        raise NotImplementedError(
+            "Hybrid search is not supported by this vector store. "
+            "Use ChromaVectorStore for hybrid search capability."
+        )
+
 
 class MetadataStore(ABC):
     """Abstract interface for metadata storage backends.
