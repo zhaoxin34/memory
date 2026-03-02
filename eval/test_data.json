@@ -22,5 +22,9 @@
   {
     "question": "claude code  Remote Control有哪些限制？",
     "ground_truth": "一次一个远程会话,终端必须保持打开,网络中断"
+  },
+  {
+    "question": "如何安装google等宽字体：",
+    "ground_truth": "brew install --cask font-noto-sans-mono-cjk-sc"
   }
 ]
