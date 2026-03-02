@@ -515,9 +515,9 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
 
                         # Detect document type and inject filename as heading
                         if file_ext in (".md", ".markdown"):
-                            # For markdown files, check if it already has a heading
-                            if not content.lstrip().startswith("#"):
-                                content = f"# {filename_title}\n\n{content}"
+                            # Always prepend filename as H1 heading for better chunk context
+                            # This ensures search results include the filename
+                            content = f"# {filename_title}\n\n{content}"
                             doc_type = DocumentType.MARKDOWN
                         else:
                             # For other text files, prepend as first line
@@ -574,9 +574,9 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
 
                 # Detect document type and inject filename as heading
                 if file_ext in (".md", ".markdown"):
-                    # For markdown files, check if it already has a heading
-                    if not content.lstrip().startswith("#"):
-                        content = f"# {filename_title}\n\n{content}"
+                    # Always prepend filename as H1 heading for better chunk context
+                    # This ensures search results include the filename
+                    content = f"# {filename_title}\n\n{content}"
                     doc_type = DocumentType.MARKDOWN
                 else:
                     # For other text files, prepend as first line
@@ -963,6 +963,7 @@ async def _chunk_async(
                 "source_path": str(source_path),
                 "file_size": source_path.stat().st_size,
                 "document_type": document_type,
+                "title": source_path.stem,  # Use filename without extension as title
             }
 
         else:
@@ -1047,7 +1048,7 @@ async def _chunk_async(
                 repository_id=temp_repo_id,
                 source_path=doc_metadata.get("source_path", "unknown"),
                 doc_type=DocumentType.TEXT,
-                title=doc_metadata.get("source_path", "Document"),
+                title=doc_metadata.get("title", "Document"),
                 content=content,
                 metadata=doc_metadata,
             )
