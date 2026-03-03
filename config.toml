@@ -63,10 +63,10 @@ enabled = true # Set to true to enable BM25 sparse embedding generation
 
 # Hybrid search configuration (combines vector and BM25 search)
 [vector_store.hybrid_search]
-enabled = true    # Set to true to enable hybrid search
-vector_weight = 1 # Weight for vector search (0.0-1.0)
-bm25_weight = 0.0 # Weight for BM25 search (0.0-1.0)
-rrf_k = 5         # RRF k parameter for rank fusion
+enabled = true      # Set to true to enable hybrid search
+vector_weight = 0.7 # Weight for vector search (0.0-1.0)
+bm25_weight = 0.3   # Weight for BM25 search (0.0-1.0)
+rrf_k = 5           # RRF k parameter for rank fusion
 
 # For in-memory storage (no persistence, useful for testing):
 # [vector_store]
