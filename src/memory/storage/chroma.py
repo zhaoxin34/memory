@@ -13,6 +13,11 @@ Trade-offs:
 - Not suitable for very large datasets (millions of vectors)
 - Single-node only (no distributed mode)
 - File-based storage (not as robust as dedicated databases)
+
+BM25 Hybrid Search:
+- ChromaDB >= 1.5.2 supports BM25 sparse embeddings
+- Use ChromaBm25EmbeddingFunction for keyword search
+- RRF (Reciprocal Rank Fusion) combines vector and BM25 results
 """
 
 import re
@@ -409,6 +414,415 @@ class ChromaVectorStore(VectorStore):
                 storage_type="chroma",
                 original_error=e,
             )
+
+    async def hybrid_search(
+        self,
+        query_text: str,
+        query_vector: list[float],
+        top_k: int = 10,
+        repository_id: UUID | None = None,
+        filters: dict | None = None,
+    ) -> list[SearchResult]:
+        """Hybrid search combining vector similarity and BM25 keyword search.
+
+        Uses RRF (Reciprocal Rank Fusion) to combine results from both methods.
+
+        Args:
+            query_text: Original query text for BM25 search
+            query_vector: Query embedding vector for vector search
+            top_k: Number of results to return
+            repository_id: Optional repository ID to filter results
+            filters: Optional metadata filters
+
+        Returns:
+            List of search results with combined scores
+
+        Raises:
+            StorageError: If hybrid search fails
+        """
+        try:
+            # Get config values (defaults if not set)
+            vector_weight = 0.7
+            bm25_weight = 0.3
+            rrf_k = 60
+
+            # Try to get from extra_params if available
+            extra_params = self.config.extra_params
+            vector_weight = extra_params.get("hybrid_vector_weight", vector_weight)
+            bm25_weight = extra_params.get("hybrid_bm25_weight", bm25_weight)
+            rrf_k = extra_params.get("hybrid_rrf_k", rrf_k)
+
+            logger.info(
+                "hybrid_search_started",
+                query_length=len(query_text),
+                top_k=top_k,
+                vector_weight=vector_weight,
+                bm25_weight=bm25_weight,
+                rrf_k=rrf_k,
+                repository_id=str(repository_id) if repository_id else "all",
+            )
+
+            # Perform vector search and BM25 search in parallel
+            import asyncio
+
+            vector_results, bm25_results = await asyncio.gather(
+                self.search(query_vector, top_k * 2, repository_id, filters),
+                self._bm25_search(query_text, top_k * 2, repository_id, filters),
+            )
+
+            # If BM25 returns no results, fall back to pure vector search
+            if not bm25_results:
+                logger.warning(
+                    "bm25_search_returned_no_results_falling_back_to_vector",
+                    vector_results_count=len(vector_results),
+                )
+                vector_results.sort(key=lambda x: x.score, reverse=True)
+                return vector_results[:top_k]
+
+            # Apply RRF fusion
+            fused_results = self._rrf_fusion(
+                vector_results,
+                bm25_results,
+                vector_weight=vector_weight,
+                bm25_weight=bm25_weight,
+                rrf_k=rrf_k,
+            )
+
+            # Sort by score and limit to top_k
+            fused_results.sort(key=lambda x: x.score, reverse=True)
+            fused_results = fused_results[:top_k]
+
+            logger.info(
+                "hybrid_search_completed",
+                results_count=len(fused_results),
+                vector_matches=len(vector_results),
+                bm25_matches=len(bm25_results),
+            )
+
+            return fused_results
+
+        except Exception as e:
+            raise StorageError(
+                message=f"Failed to perform hybrid search: {str(e)}",
+                storage_type="chroma",
+                original_error=e,
+            )
+
+    async def _bm25_search(
+        self,
+        query_text: str,
+        top_k: int = 10,
+        repository_id: UUID | None = None,
+        filters: dict | None = None,
+    ) -> list[SearchResult]:
+        """BM25 keyword search using pure BM25 algorithm.
+
+        This performs a pure keyword-based search without using vector embeddings.
+
+        Args:
+            query_text: Query text for BM25 search
+            top_k: Number of results to return
+            repository_id: Optional repository ID to filter results
+            filters: Optional metadata filters
+
+        Returns:
+            List of search results with BM25 scores
+        """
+        try:
+            # Determine which collections to search
+            if repository_id:
+                collections_to_search = [(repository_id, self._get_collection(repository_id))]
+            else:
+                all_collections = self._client.list_collections()
+                collections_to_search = []
+
+                for coll_info in all_collections:
+                    name = coll_info.name
+                    if name.startswith(self.base_collection_name + "_"):
+                        repo_id_str = name[len(self.base_collection_name) + 1:]
+                        try:
+                            repo_id = UUID(repo_id_str.replace("_", "-"))
+                            collection = self._client.get_collection(name)
+                            collections_to_search.append((repo_id, collection))
+                        except (ValueError, Exception):
+                            logger.warning(
+                                "skipping_invalid_collection",
+                                collection_name=name,
+                            )
+
+            results = []
+
+            # Search each collection using BM25
+            for repo_id, collection in collections_to_search:
+                try:
+                    # Get all documents from the collection
+                    all_docs = collection.get(include=["documents", "metadatas"])
+
+                    if not all_docs.get("documents"):
+                        continue
+
+                    # Compute BM25 scores manually
+                    bm25_scores = self._compute_bm25_scores(
+                        query_text,
+                        all_docs["documents"],
+                    )
+
+                    # Get top_k results with non-zero scores
+                    scored_docs = [
+                        (idx, bm25_scores[idx])
+                        for idx in range(len(bm25_scores))
+                        if bm25_scores[idx] > 0
+                    ]
+                    scored_docs.sort(key=lambda x: x[1], reverse=True)
+
+                    for idx, score in scored_docs[:top_k]:
+                        metadata = all_docs["metadatas"][idx]
+                        document_text = all_docs["documents"][idx]
+                        chunk_id_str = all_docs["ids"][idx]
+
+                        chunk = Chunk(
+                            id=UUID(chunk_id_str),
+                            document_id=UUID(metadata["document_id"]),
+                            repository_id=UUID(metadata["repository_id"]),
+                            content=document_text,
+                            chunk_index=metadata["chunk_index"],
+                            start_char=metadata["start_char"],
+                            end_char=metadata["end_char"],
+                        )
+
+                        results.append(
+                            SearchResult(
+                                chunk=chunk,
+                                score=score,
+                            )
+                        )
+
+                except Exception as e:
+                    logger.warning(
+                        "bm25_search_collection_failed",
+                        collection=collection.name,
+                        error=str(e),
+                    )
+                    continue
+
+            # Sort by score descending
+            results.sort(key=lambda x: x.score, reverse=True)
+
+            logger.info(
+                "bm25_search_completed",
+                results_count=len(results),
+                repository_id=str(repository_id) if repository_id else "all",
+            )
+
+            return results
+
+        except ImportError as e:
+            raise StorageError(
+                message="BM25 search requires chromadb>=1.5.2. Install with: uv sync --extra chroma",
+                storage_type="chroma",
+                original_error=e,
+            )
+        except Exception as e:
+            raise StorageError(
+                message=f"Failed to perform BM25 search: {str(e)}",
+                storage_type="chroma",
+                original_error=e,
+            )
+
+    def _compute_bm25_scores(
+        self,
+        query: str,
+        documents: list[str],
+    ) -> list[float]:
+        """Compute BM25 scores for query against documents.
+
+        Uses jieba for Chinese tokenization.
+
+        Args:
+            query: Query text
+            documents: List of documents to score
+
+        Returns:
+            List of BM25 scores (0-1 normalized)
+        """
+        try:
+            import math
+            from collections import Counter
+
+            import jieba
+
+            if not documents:
+                return []
+
+            # Parameters
+            k1 = 1.2
+            b = 0.75
+
+            # Tokenize query using jieba (handles both Chinese and English)
+            query_terms = [w.lower() for w in jieba.lcut(query) if w.strip()]
+
+            if not query_terms:
+                return [0.0] * len(documents)
+
+            # Tokenize documents using jieba
+            doc_terms_list = [[w.lower() for w in jieba.lcut(doc) if w.strip()] for doc in documents]
+
+            # Calculate average document length
+            doc_lengths = [len(terms) for terms in doc_terms_list]
+            avg_doc_length = sum(doc_lengths) / len(doc_lengths) if doc_lengths else 1
+
+            # Count total documents
+            n_docs = len(documents)
+
+            # Calculate document frequencies for each term
+            doc_freqs = {}
+            for term in query_terms:
+                df = sum(1 for terms in doc_terms_list if term in terms)
+                doc_freqs[term] = df
+
+            scores = []
+            for doc_terms in doc_terms_list:
+                doc_len = max(len(doc_terms), 1)
+                doc_term_freq = Counter(doc_terms)
+
+                score = 0.0
+                for term in query_terms:
+                    if term in doc_term_freq:
+                        tf = doc_term_freq[term]
+                        df = max(doc_freqs.get(term, 0), 1)
+
+                        # IDF calculation (smoothed)
+                        idf = math.log((n_docs - df + 0.5) / (df + 0.5) + 1)
+
+                        # BM25 formula
+                        tf_component = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len / avg_doc_length)))
+
+                        score += idf * tf_component
+
+                scores.append(score)
+
+            # Normalize scores to 0-1 range
+            max_score = max(scores) if scores else 1
+            if max_score > 0:
+                scores = [s / max_score for s in scores]
+
+            return scores
+
+        except ImportError:
+            # Fallback to simple tokenization if jieba not available
+            import math
+            from collections import Counter
+
+            if not documents:
+                return []
+
+            k1 = 1.2
+            b = 0.75
+
+            query_terms = query.lower().split()
+            if not query_terms:
+                return [0.0] * len(documents)
+
+            doc_terms_list = [doc.lower().split() for doc in documents]
+            doc_lengths = [len(terms) for terms in doc_terms_list]
+            avg_doc_length = sum(doc_lengths) / len(doc_lengths) if doc_lengths else 1
+            n_docs = len(documents)
+
+            doc_freqs = {}
+            for term in query_terms:
+                df = sum(1 for terms in doc_terms_list if term in terms)
+                doc_freqs[term] = df
+
+            scores = []
+            for doc_terms in doc_terms_list:
+                doc_len = max(len(doc_terms), 1)
+                doc_term_freq = Counter(doc_terms)
+
+                score = 0.0
+                for term in query_terms:
+                    if term in doc_term_freq:
+                        tf = doc_term_freq[term]
+                        df = max(doc_freqs.get(term, 0), 1)
+                        idf = math.log((n_docs - df + 0.5) / (df + 0.5) + 1)
+                        tf_component = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * (doc_len / avg_doc_length)))
+                        score += idf * tf_component
+
+                scores.append(score)
+
+            max_score = max(scores) if scores else 1
+            if max_score > 0:
+                scores = [s / max_score for s in scores]
+
+            return scores
+
+        except Exception as e:
+            logger.warning("bm25_score_computation_failed", error=str(e))
+            return [0.0] * len(documents)
+
+    def _rrf_fusion(
+        self,
+        vector_results: list[SearchResult],
+        bm25_results: list[SearchResult],
+        vector_weight: float = 0.7,
+        bm25_weight: float = 0.3,
+        rrf_k: int = 60,
+    ) -> list[SearchResult]:
+        """Combine vector and BM25 results using RRF (Reciprocal Rank Fusion).
+
+        RRF formula: score = weight * (1 / (k + rank))
+
+        Args:
+            vector_results: Results from vector search
+            bm25_results: Results from BM25 search
+            vector_weight: Weight for vector search results
+            bm25_weight: Weight for BM25 search results
+            rrf_k: RRF k parameter (default 60)
+
+        Returns:
+            Combined and sorted list of search results
+        """
+        # Build rank maps
+        vector_ranks: dict[str, float] = {}
+        for rank, result in enumerate(vector_results):
+            chunk_id = str(result.chunk.id)
+            # RRF score: 1 / (k + rank)
+            vector_ranks[chunk_id] = vector_weight * (1.0 / (rrf_k + rank + 1))
+
+        bm25_ranks: dict[str, float] = {}
+        for rank, result in enumerate(bm25_results):
+            chunk_id = str(result.chunk.id)
+            bm25_ranks[chunk_id] = bm25_weight * (1.0 / (rrf_k + rank + 1))
+
+        # Combine scores
+        combined_scores: dict[str, float] = {}
+        for chunk_id in set(list(vector_ranks.keys()) + list(bm25_ranks.keys())):
+            combined_scores[chunk_id] = vector_ranks.get(chunk_id, 0) + bm25_ranks.get(chunk_id, 0)
+
+        # Build result map for quick lookup
+        all_results: dict[str, SearchResult] = {}
+        for result in vector_results:
+            all_results[str(result.chunk.id)] = result
+        for result in bm25_results:
+            chunk_id = str(result.chunk.id)
+            if chunk_id not in all_results:
+                all_results[chunk_id] = result
+
+        # Create fused results
+        # Use combined RRF score for ranking, but keep original vector score for display
+        fused_results = []
+        for chunk_id, rrf_score in sorted(combined_scores.items(), key=lambda x: x[1], reverse=True):
+            if chunk_id in all_results:
+                result = all_results[chunk_id]
+                # Use vector search score if available, otherwise use BM25 score
+                final_score = result.score if chunk_id in vector_ranks else rrf_score
+                fused_results.append(
+                    SearchResult(
+                        chunk=result.chunk,
+                        score=final_score,
+                    )
+                )
+
+        return fused_results
 
     async def delete_by_document_id(self, document_id: UUID) -> int:
         """Delete all embeddings for a document.

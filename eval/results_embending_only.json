@@ -1,0 +1,178 @@
+[
+  {
+    "question": "红烧肉怎么做好吃？",
+    "contexts": [
+      "# 家常红烧肉制作指南\n\n\n## 简介\n\n\n红烧肉是中国传统名菜，色泽红亮，口感软糯，肥而不腻。\n\n\n## 主要食材\n\n\n五花肉：500克\n\n\n生姜：3片\n\n\n大蒜：3瓣\n\n\n八角：2个\n\n\n冰糖：30克\n\n\n生抽：2汤匙\n\n\n老抽：1汤匙\n\n\n料酒：1汤匙\n\n\n盐：适量\n\n\n## 制作步骤\n\n\n### 1. 处理五花肉\n\n\n将五花肉切成3-4厘米见方的块状。冷水下锅，加入料酒和姜片焯水，去除腥味。\n\n\n### 2. 炒糖色\n\n\n锅中放少许油，放入冰糖小火慢炒。炒至冰糖融化变成琥珀色时，迅速放入五花肉翻炒上色。\n\n\n### 3. 炖煮\n\n\n加入生姜、大蒜、八角，倒入生抽和老抽。加入开水没过肉块，大火烧开后转小火炖煮60-90分钟。\n\n\n### 4. 收汁\n\n\n待肉质软烂后，大火收汁。不断翻炒使肉块均匀上色，直至汤汁浓稠。\n\n\n## 技巧要点\n\n\n选择肥瘦相间的五花肉，口感最佳\n\n\n炒糖色时要小火慢炒，焦了会发苦\n\n\n炖煮时一定要加开水，避免肉质变柴\n\n\n最后收汁要不断翻动，防止糊锅\n\n\n## 营养价值\n\n\n红烧肉富含蛋白质和脂肪，适量食用可以补充能量。但血脂较高者应适量食用。\n",
+      "```bash\n\nbrew install koekeishiya/formulae/yabai \nbrew tap FelixKratz/formulae\nbrew install borders\nbrew install koekeishiya/formulae/skhd\nskhd --start-service\n# start yabai \nyabai --start-service \n# 写入sudo权限 \necho \"$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d \" \" -f 1) $(which yabai) --load-sa\" | sudo tee /private/etc/sudoers.d/yabai \n# 创建配置文件 \nmkdir -p $HOME/.config/yabai \ncd $HOME/.config/yabai touch yabairc && chmod +x yabairc \nyabai -m signal --add event=dock_did_restart action=\"sudo yabai --load-sa\" \nsudo yabai --load-sa\n```\n",
+      "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n",
+      "# 股票投资基础知识\n\n\n## 什么是股票\n\n\n股票是公司发行的所有权凭证，购买股票即成为公司的股东，享有公司利润分配和重大决策参与权。\n\n\n## 基本术语\n\n\n### 市盈率（PE）\n\n\n股票价格与每股收益的比率，用于评估股票是否被高估或低估。\n\n\n```\n市盈率 = 股票价格 ÷ 每股收益\n```\n\n\n### 市净率（PB）\n\n\n股票价格与每股净资产的比率。\n\n\n```\n市净率 = 股票价格 ÷ 每股净资产\n```\n\n\n### 分红\n\n\n公司将部分利润分配给股东，分为现金分红和股票分红。\n\n\n### 止损\n\n\n当股价下跌到预定价位时自动卖出，以限制损失。\n\n\n## 主要分析方法\n\n\n### 基本面分析\n\n\n分析公司的财务状况、经营业绩、行业前景等因素，评估股票的内在价值。\n\n\n**关注指标：**\n\n\n营收和利润增长率\n\n\n毛利率和净利率\n\n\n资产负债率\n\n\n现金流状况\n\n\n### 技术分析\n\n\n通过研究股票价格和成交量的历史数据，预测未来价格走势。\n\n\n**常用工具：**\n\n\nK线图\n\n\n移动平均线\n\n\nMACD指标\n\n\nKDJ指标\n\n\n## 投资策略\n\n\n### 价值投资\n\n\n寻找被低估的优质公司，长期持有，等待价值回归。代表人物：沃伦·巴菲特。\n\n\n### 成长投资\n\n\n寻找具有高成长性的公司，虽然估值可能较高，但预期未来利润会大幅增长。\n\n\n### 趋势投资\n\n\n顺应市场趋势进行交易，在上升趋势中买入，下降趋势中卖出。\n\n\n## 风险管理\n\n\n分散投资：不要把所有资金投入单一股票或行业\n\n\n设置止损：控制最大损失\n\n\n保持流动性：不要投资无法承担损失的资金\n\n\n持续学习：不断提高投资知识和技能\n\n\n## 常见错误\n\n\n追涨杀跌：盲目跟风，容易被套\n\n\n过度交易：频繁买卖，增加成本\n\n\n杠杆投资：使用借来的钱投资，风险放大\n\n\n情绪化决策：被贪婪和恐惧左右\n\n\n## 注意事项\n\n\n投资有风险，入市需谨慎。建议在充分了解相关知识和风险后，再进行投资。\n",
+      "# start yabai\n# 写入sudo权限\n# 创建配置文件\n\n```json\n{\n  \"builder\": {\n    \"gc\": {\n      \"defaultKeepStorage\": \"20GB\",\n      \"enabled\": true\n    }\n  },\n  \"experimental\": false,\n  \"registry-mirrors\": [\n    \"https://docker.registry.cyou\",\n    \"https://docker-cf.registry.cyou\",\n    \"https://dockercf.jsdelivr.fyi\",\n    \"https://docker.jsdelivr.fyi\",\n    \"https://dockertest.jsdelivr.fyi\",\n    \"https://mirror.aliyuncs.com\",\n    \"https://dockerproxy.com\",\n    \"https://mirror.baidubce.com\",\n    \"https://docker.m.daocloud.io\",\n    \"https://docker.nju.edu.cn\",\n    \"https://docker.mirrors.sjtug.sjtu.edu.cn\",\n    \"https://docker.mirrors.ustc.edu.cn\",\n    \"https://mirror.iscas.ac.cn\",\n    \"https://docker.rainbond.cc\"\n  ]\n}\n```\n\n\n打开到 docker.destop > setup > resource\n配置cpu、内存\nDisk Image Location\n/Volumes/data/working/docker/data/DockerDesktop\n\n\n```bash\nbrew install mysql-client\n\n# 把下面的命令放到.zshrc中\nexport PATH=\"/opt/homebrew/opt/mysql-client/bin:$PATH\"\n```\n"
+    ],
+    "scores": [
+      0.6831403840504959,
+      0.461905777170073,
+      0.44398080710792026,
+      0.44030975656330495,
+      0.43794498404263565
+    ],
+    "avg_score": 0.4934563417868859,
+    "has_results": true,
+    "ground_truth": "将五花肉切成3-4厘米见方的块状。冷水下锅，加入料酒和姜片焯水，去除腥味",
+    "keyword_recall": 1.0,
+    "context_relevance": 0.3333333333333333
+  },
+  {
+    "question": "红烧肉是不是中国的传统菜？",
+    "contexts": [
+      "# 家常红烧肉制作指南\n\n\n## 简介\n\n\n红烧肉是中国传统名菜，色泽红亮，口感软糯，肥而不腻。\n\n\n## 主要食材\n\n\n五花肉：500克\n\n\n生姜：3片\n\n\n大蒜：3瓣\n\n\n八角：2个\n\n\n冰糖：30克\n\n\n生抽：2汤匙\n\n\n老抽：1汤匙\n\n\n料酒：1汤匙\n\n\n盐：适量\n\n\n## 制作步骤\n\n\n### 1. 处理五花肉\n\n\n将五花肉切成3-4厘米见方的块状。冷水下锅，加入料酒和姜片焯水，去除腥味。\n\n\n### 2. 炒糖色\n\n\n锅中放少许油，放入冰糖小火慢炒。炒至冰糖融化变成琥珀色时，迅速放入五花肉翻炒上色。\n\n\n### 3. 炖煮\n\n\n加入生姜、大蒜、八角，倒入生抽和老抽。加入开水没过肉块，大火烧开后转小火炖煮60-90分钟。\n\n\n### 4. 收汁\n\n\n待肉质软烂后，大火收汁。不断翻炒使肉块均匀上色，直至汤汁浓稠。\n\n\n## 技巧要点\n\n\n选择肥瘦相间的五花肉，口感最佳\n\n\n炒糖色时要小火慢炒，焦了会发苦\n\n\n炖煮时一定要加开水，避免肉质变柴\n\n\n最后收汁要不断翻动，防止糊锅\n\n\n## 营养价值\n\n\n红烧肉富含蛋白质和脂肪，适量食用可以补充能量。但血脂较高者应适量食用。\n",
+      "# 日本旅行全攻略\n\n\n## 概述\n\n\n日本是一个融合了传统与现代的美丽国度，拥有丰富的文化遗产和现代化都市。\n\n\n## 必去城市\n\n\n### 东京\n\n\n日本的首都和最大城市，是现代化都市的代表。\n\n\n**热门景点：**\n\n\n浅草寺：东京最古老的佛教寺庙\n\n\n东京塔：象征日本的地标建筑\n\n\n新宿：购物和夜生活的中心\n\n\n涩谷：年轻人的潮流圣地\n\n\n### 京都\n\n\n日本的古都，保留了大量的传统建筑和文化。\n\n\n**热门景点：**\n\n\n金阁寺：著名的金箔装饰寺庙\n\n\n伏见稻荷大社：千本�的鸟居非常壮观\n\n\n清水寺：可以俯瞰整个京都\n\n\n岚山：春天的樱花和秋天的红叶非常美丽\n\n\n### 大阪\n\n\n日本的美食天堂，以美食和购物闻名。\n\n\n**热门景点：**\n\n\n道顿堀：美食街，可以品尝各种日本料理\n\n\n大阪城：历史悠久的城堡\n\n\n环球影城：适合家庭游玩的主题公园\n\n\n## 美食推荐\n\n\n### 寿司\n\n\n日本的代表性美食，推荐在筑地市场品尝最新鲜的寿司。\n\n\n### 拉面\n\n\n各个地区都有特色的拉面，如豚骨拉面、酱油拉面等。\n\n\n### 怀石料理\n\n\n传统的日本料理，注重季节性和摆盘艺术。\n\n\n### 大阪烧\n\n\n大阪特色美食，是一种蔬菜煎饼。\n\n\n## 交通指南\n\n\n### JR Pass\n\n\n如果计划在日本多地旅行，建议购买JR Pass，可以无限次乘坐JR线路。\n\n\n### 地铁\n\n\n大城市内的主要交通工具，建议购买一日券或多日券。\n\n\n### 新干线\n\n\n连接主要城市的快速列车，舒适且准时。\n\n\n## 实用信息\n\n\n### 最佳旅行时间\n\n\n春季（3-5月）：赏樱花\n\n\n秋季（9-11月）：赏红叶\n\n\n### 时差\n\n\n日本比中国快1小时。\n\n\n### 货币\n\n\n使用日元，大部分地方接受信用卡，但建议随身携带一些现金。\n\n\n### 语言\n\n\n主要使用日语，但在旅游区英语也比较通用。\n",
+      "# 股票投资基础知识\n\n\n## 什么是股票\n\n\n股票是公司发行的所有权凭证，购买股票即成为公司的股东，享有公司利润分配和重大决策参与权。\n\n\n## 基本术语\n\n\n### 市盈率（PE）\n\n\n股票价格与每股收益的比率，用于评估股票是否被高估或低估。\n\n\n```\n市盈率 = 股票价格 ÷ 每股收益\n```\n\n\n### 市净率（PB）\n\n\n股票价格与每股净资产的比率。\n\n\n```\n市净率 = 股票价格 ÷ 每股净资产\n```\n\n\n### 分红\n\n\n公司将部分利润分配给股东，分为现金分红和股票分红。\n\n\n### 止损\n\n\n当股价下跌到预定价位时自动卖出，以限制损失。\n\n\n## 主要分析方法\n\n\n### 基本面分析\n\n\n分析公司的财务状况、经营业绩、行业前景等因素，评估股票的内在价值。\n\n\n**关注指标：**\n\n\n营收和利润增长率\n\n\n毛利率和净利率\n\n\n资产负债率\n\n\n现金流状况\n\n\n### 技术分析\n\n\n通过研究股票价格和成交量的历史数据，预测未来价格走势。\n\n\n**常用工具：**\n\n\nK线图\n\n\n移动平均线\n\n\nMACD指标\n\n\nKDJ指标\n\n\n## 投资策略\n\n\n### 价值投资\n\n\n寻找被低估的优质公司，长期持有，等待价值回归。代表人物：沃伦·巴菲特。\n\n\n### 成长投资\n\n\n寻找具有高成长性的公司，虽然估值可能较高，但预期未来利润会大幅增长。\n\n\n### 趋势投资\n\n\n顺应市场趋势进行交易，在上升趋势中买入，下降趋势中卖出。\n\n\n## 风险管理\n\n\n分散投资：不要把所有资金投入单一股票或行业\n\n\n设置止损：控制最大损失\n\n\n保持流动性：不要投资无法承担损失的资金\n\n\n持续学习：不断提高投资知识和技能\n\n\n## 常见错误\n\n\n追涨杀跌：盲目跟风，容易被套\n\n\n过度交易：频繁买卖，增加成本\n\n\n杠杆投资：使用借来的钱投资，风险放大\n\n\n情绪化决策：被贪婪和恐惧左右\n\n\n## 注意事项\n\n\n投资有风险，入市需谨慎。建议在充分了解相关知识和风险后，再进行投资。\n",
+      "```bash\n\nbrew install koekeishiya/formulae/yabai \nbrew tap FelixKratz/formulae\nbrew install borders\nbrew install koekeishiya/formulae/skhd\nskhd --start-service\n# start yabai \nyabai --start-service \n# 写入sudo权限 \necho \"$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d \" \" -f 1) $(which yabai) --load-sa\" | sudo tee /private/etc/sudoers.d/yabai \n# 创建配置文件 \nmkdir -p $HOME/.config/yabai \ncd $HOME/.config/yabai touch yabairc && chmod +x yabairc \nyabai -m signal --add event=dock_did_restart action=\"sudo yabai --load-sa\" \nsudo yabai --load-sa\n```\n",
+      "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n"
+    ],
+    "scores": [
+      0.5705447361914955,
+      0.4443707529461796,
+      0.43841916712458323,
+      0.4246053412877456,
+      0.41284657060001334
+    ],
+    "avg_score": 0.4581573136300035,
+    "has_results": true,
+    "ground_truth": "红烧肉是中国传统名菜，色泽红亮，口感软糯，肥而不腻",
+    "keyword_recall": 1.0,
+    "context_relevance": 0.75
+  },
+  {
+    "question": "水浒传中的宋江是好人吗?",
+    "contexts": [
+      "# 股票投资基础知识\n\n\n## 什么是股票\n\n\n股票是公司发行的所有权凭证，购买股票即成为公司的股东，享有公司利润分配和重大决策参与权。\n\n\n## 基本术语\n\n\n### 市盈率（PE）\n\n\n股票价格与每股收益的比率，用于评估股票是否被高估或低估。\n\n\n```\n市盈率 = 股票价格 ÷ 每股收益\n```\n\n\n### 市净率（PB）\n\n\n股票价格与每股净资产的比率。\n\n\n```\n市净率 = 股票价格 ÷ 每股净资产\n```\n\n\n### 分红\n\n\n公司将部分利润分配给股东，分为现金分红和股票分红。\n\n\n### 止损\n\n\n当股价下跌到预定价位时自动卖出，以限制损失。\n\n\n## 主要分析方法\n\n\n### 基本面分析\n\n\n分析公司的财务状况、经营业绩、行业前景等因素，评估股票的内在价值。\n\n\n**关注指标：**\n\n\n营收和利润增长率\n\n\n毛利率和净利率\n\n\n资产负债率\n\n\n现金流状况\n\n\n### 技术分析\n\n\n通过研究股票价格和成交量的历史数据，预测未来价格走势。\n\n\n**常用工具：**\n\n\nK线图\n\n\n移动平均线\n\n\nMACD指标\n\n\nKDJ指标\n\n\n## 投资策略\n\n\n### 价值投资\n\n\n寻找被低估的优质公司，长期持有，等待价值回归。代表人物：沃伦·巴菲特。\n\n\n### 成长投资\n\n\n寻找具有高成长性的公司，虽然估值可能较高，但预期未来利润会大幅增长。\n\n\n### 趋势投资\n\n\n顺应市场趋势进行交易，在上升趋势中买入，下降趋势中卖出。\n\n\n## 风险管理\n\n\n分散投资：不要把所有资金投入单一股票或行业\n\n\n设置止损：控制最大损失\n\n\n保持流动性：不要投资无法承担损失的资金\n\n\n持续学习：不断提高投资知识和技能\n\n\n## 常见错误\n\n\n追涨杀跌：盲目跟风，容易被套\n\n\n过度交易：频繁买卖，增加成本\n\n\n杠杆投资：使用借来的钱投资，风险放大\n\n\n情绪化决策：被贪婪和恐惧左右\n\n\n## 注意事项\n\n\n投资有风险，入市需谨慎。建议在充分了解相关知识和风险后，再进行投资。\n",
+      "# 日本旅行全攻略\n\n\n## 概述\n\n\n日本是一个融合了传统与现代的美丽国度，拥有丰富的文化遗产和现代化都市。\n\n\n## 必去城市\n\n\n### 东京\n\n\n日本的首都和最大城市，是现代化都市的代表。\n\n\n**热门景点：**\n\n\n浅草寺：东京最古老的佛教寺庙\n\n\n东京塔：象征日本的地标建筑\n\n\n新宿：购物和夜生活的中心\n\n\n涩谷：年轻人的潮流圣地\n\n\n### 京都\n\n\n日本的古都，保留了大量的传统建筑和文化。\n\n\n**热门景点：**\n\n\n金阁寺：著名的金箔装饰寺庙\n\n\n伏见稻荷大社：千本�的鸟居非常壮观\n\n\n清水寺：可以俯瞰整个京都\n\n\n岚山：春天的樱花和秋天的红叶非常美丽\n\n\n### 大阪\n\n\n日本的美食天堂，以美食和购物闻名。\n\n\n**热门景点：**\n\n\n道顿堀：美食街，可以品尝各种日本料理\n\n\n大阪城：历史悠久的城堡\n\n\n环球影城：适合家庭游玩的主题公园\n\n\n## 美食推荐\n\n\n### 寿司\n\n\n日本的代表性美食，推荐在筑地市场品尝最新鲜的寿司。\n\n\n### 拉面\n\n\n各个地区都有特色的拉面，如豚骨拉面、酱油拉面等。\n\n\n### 怀石料理\n\n\n传统的日本料理，注重季节性和摆盘艺术。\n\n\n### 大阪烧\n\n\n大阪特色美食，是一种蔬菜煎饼。\n\n\n## 交通指南\n\n\n### JR Pass\n\n\n如果计划在日本多地旅行，建议购买JR Pass，可以无限次乘坐JR线路。\n\n\n### 地铁\n\n\n大城市内的主要交通工具，建议购买一日券或多日券。\n\n\n### 新干线\n\n\n连接主要城市的快速列车，舒适且准时。\n\n\n## 实用信息\n\n\n### 最佳旅行时间\n\n\n春季（3-5月）：赏樱花\n\n\n秋季（9-11月）：赏红叶\n\n\n### 时差\n\n\n日本比中国快1小时。\n\n\n### 货币\n\n\n使用日元，大部分地方接受信用卡，但建议随身携带一些现金。\n\n\n### 语言\n\n\n主要使用日语，但在旅游区英语也比较通用。\n",
+      "Remote Control（远程控制）让你可以在手机、平板或任何浏览器上继续使用本地 Claude Code 会话。支持 [claude.ai/code](https://claude.ai/code) 和 Claude 手机应用（iOS/Android）。\n",
+      "# 力量训练完全指南\n\n\n## 什么是力量训练\n\n\n力量训练是一种通过抗阻运动来增强肌肉力量和耐力的训练方式。\n\n\n## 常见训练动作\n\n\n### 胸部训练\n\n\n#### 卧推\n\n\n仰卧在平板凳上，双脚踏实地面\n\n\n握距略宽于肩，手臂握住杠铃\n\n\n慢慢放下杠铃至胸部上方\n\n\n用胸肌力量推起杠铃\n\n\n#### 哑铃飞鸟\n\n\n仰卧在平板凳上，双手持哑铃\n\n\n双手向身体两侧展开，如同拥抱姿势\n\n\n感受到胸肌拉伸后回到起始位置\n\n\n### 背部训练\n\n\n#### 硬拉\n\n\n双脚与肩同宽，杠铃贴近小腿\n\n\n屈膝俯身，双手握杠\n\n\n腿部发力站直，同时挺直背部\n\n\n慢慢放下杠铃回到起始位置\n\n\n#### 引体向上\n\n\n双手握距略宽于肩，挂在单杠上\n\n\n用背阔肌力量向上拉\n\n\n下巴过杠后慢慢放下\n\n\n### 腿部训练\n\n\n#### 深蹲\n\n\n双脚与肩同宽，脚尖略微外展\n\n\n屈膝下蹲，臀部向后坐\n\n\n大腿与地面平行时站起\n\n\n保持背部挺直，膝盖不超过脚尖\n\n\n## 训练计划\n\n\n建议每周进行2-3次力量训练，每次训练选择2-3个肌群，每个动作3-4组，每组8-12次。\n\n\n## 注意事项\n\n\n训练前做好热身，预防受伤\n\n\n选择合适的重量，循序渐进\n\n\n保持正确姿势，避免代偿\n\n\n训练后进行拉伸，帮助肌肉恢复\n\n\n保证充足睡眠和营养补充\n",
+      "# 家常红烧肉制作指南\n\n\n## 简介\n\n\n红烧肉是中国传统名菜，色泽红亮，口感软糯，肥而不腻。\n\n\n## 主要食材\n\n\n五花肉：500克\n\n\n生姜：3片\n\n\n大蒜：3瓣\n\n\n八角：2个\n\n\n冰糖：30克\n\n\n生抽：2汤匙\n\n\n老抽：1汤匙\n\n\n料酒：1汤匙\n\n\n盐：适量\n\n\n## 制作步骤\n\n\n### 1. 处理五花肉\n\n\n将五花肉切成3-4厘米见方的块状。冷水下锅，加入料酒和姜片焯水，去除腥味。\n\n\n### 2. 炒糖色\n\n\n锅中放少许油，放入冰糖小火慢炒。炒至冰糖融化变成琥珀色时，迅速放入五花肉翻炒上色。\n\n\n### 3. 炖煮\n\n\n加入生姜、大蒜、八角，倒入生抽和老抽。加入开水没过肉块，大火烧开后转小火炖煮60-90分钟。\n\n\n### 4. 收汁\n\n\n待肉质软烂后，大火收汁。不断翻炒使肉块均匀上色，直至汤汁浓稠。\n\n\n## 技巧要点\n\n\n选择肥瘦相间的五花肉，口感最佳\n\n\n炒糖色时要小火慢炒，焦了会发苦\n\n\n炖煮时一定要加开水，避免肉质变柴\n\n\n最后收汁要不断翻动，防止糊锅\n\n\n## 营养价值\n\n\n红烧肉富含蛋白质和脂肪，适量食用可以补充能量。但血脂较高者应适量食用。\n"
+    ],
+    "scores": [
+      0.41338491432814517,
+      0.3978607381555606,
+      0.3891242550965297,
+      0.38826552956496213,
+      0.38806357082724735
+    ],
+    "avg_score": 0.395339801594489,
+    "has_results": true,
+    "ground_truth": "宋江是梁山一百单八将之首，为人仗义疏财",
+    "keyword_recall": 0.0,
+    "context_relevance": 0.0
+  },
+  {
+    "question": "claude code2.1.51做了哪些变更?",
+    "contexts": [
+      "**Worktree Hook 事件**: 新增 `WorktreeCreate` 和 `WorktreeRemove` hook 事件，支持在代理 worktree 隔离创建/删除时进行自定义 VCS 设置\n\n\n**环境变量**: 新增 `CLAUDE_CODE_ACCOUNT_UUID`、`CLAUDE_CODE_USER_EMAIL`、`CLAUDE_CODE_ORGANIZATION_UUID` 环境变量供 SDK 调用者同步提供账户信息\n",
+      "Remote Control（远程控制）让你可以在手机、平板或任何浏览器上继续使用本地 Claude Code 会话。支持 [claude.ai/code](https://claude.ai/code) 和 Claude 手机应用（iOS/Android）。\n",
+      "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n",
+      "```javascript\n// const 用于常量，不能重新赋值\nconst PI = 3.14159;\n\n// let 用于可变变量\nlet count = 0;\ncount = 1; // 合法\n```\n\n\n```javascript\n// 传统函数\nfunction add(a, b) {\n  return a + b;\n}\n\n// 箭头函数\nconst add = (a, b) => a + b;\n\n// 带函数体\nconst greet = (name) => {\n  const message = `Hello, ${name}!`;\n  return message;\n};\n```\n\n\n```javascript\n// 数组解构\nconst [first, second] = [1, 2, 3];\n\n// 对象解构\nconst { name, age } = { name: \"Alice\", age: 30 };\n\n// 函数参数解构\nfunction printUser({ name, age }) {\n  console.log(`${name} is ${age} years old`);\n}\n```\n\n\n```javascript\n// Promise\nfetch('/api/data')\n  .then(response => response.json())\n  .then(data => console.log(data))\n  .catch(error => console.error(error));\n\n// async/await\nasync function fetchData() {\n  try {\n    const response = await fetch('/api/data');\n    const data = await response.json();\n    return data;\n  } catch (error) {\n    console.error(error);\n  }\n}\n```\n",
+      "```bash\nbrew install -v zellij\nbrew install -v yazi\nbrew install ripgrep \nbrew install ast-grep fzf \nbrew install -v neovim\nbrew install lazygit\nbrew install lazydocker\nbrew install zoxide\nbrew install eza\nbrew install ical-buddy\nbrew install keith/formulae/reminders-cli\nbrew install lua\nbrew install luarocks\nbrew install tree wget ncftp bat\nbrew install btop\n\n# add to zshrc\neval \"$(zoxide init zsh)\"\nalias cd=z\nalias ls=\"eza --icons=always\"\n\n# 安装历史增强插件\nbrew install atuin\necho 'eval \"$(atuin init zsh)\"' >> ~/.zshrc\natuin import zsh # 导入历史\n\n# mermaid 安装neovim可视化、图形化，安装后就能在neovim中看到图片\n# 也可以解决 command not found: mmdc\nnpm install -g @mermaid-js/mermaid-cli\nbrew install imagemagick\n```\n"
+    ],
+    "scores": [
+      0.5116653750919122,
+      0.5007840600787472,
+      0.4669357939682146,
+      0.45961313547950755,
+      0.44844230783931854
+    ],
+    "avg_score": 0.47748813449154,
+    "has_results": true,
+    "ground_truth": "改进无头模式启动性能",
+    "keyword_recall": 0.0,
+    "context_relevance": 0.25
+  },
+  {
+    "question": "股票投资的分析方法",
+    "contexts": [
+      "# 股票投资基础知识\n\n\n## 什么是股票\n\n\n股票是公司发行的所有权凭证，购买股票即成为公司的股东，享有公司利润分配和重大决策参与权。\n\n\n## 基本术语\n\n\n### 市盈率（PE）\n\n\n股票价格与每股收益的比率，用于评估股票是否被高估或低估。\n\n\n```\n市盈率 = 股票价格 ÷ 每股收益\n```\n\n\n### 市净率（PB）\n\n\n股票价格与每股净资产的比率。\n\n\n```\n市净率 = 股票价格 ÷ 每股净资产\n```\n\n\n### 分红\n\n\n公司将部分利润分配给股东，分为现金分红和股票分红。\n\n\n### 止损\n\n\n当股价下跌到预定价位时自动卖出，以限制损失。\n\n\n## 主要分析方法\n\n\n### 基本面分析\n\n\n分析公司的财务状况、经营业绩、行业前景等因素，评估股票的内在价值。\n\n\n**关注指标：**\n\n\n营收和利润增长率\n\n\n毛利率和净利率\n\n\n资产负债率\n\n\n现金流状况\n\n\n### 技术分析\n\n\n通过研究股票价格和成交量的历史数据，预测未来价格走势。\n\n\n**常用工具：**\n\n\nK线图\n\n\n移动平均线\n\n\nMACD指标\n\n\nKDJ指标\n\n\n## 投资策略\n\n\n### 价值投资\n\n\n寻找被低估的优质公司，长期持有，等待价值回归。代表人物：沃伦·巴菲特。\n\n\n### 成长投资\n\n\n寻找具有高成长性的公司，虽然估值可能较高，但预期未来利润会大幅增长。\n\n\n### 趋势投资\n\n\n顺应市场趋势进行交易，在上升趋势中买入，下降趋势中卖出。\n\n\n## 风险管理\n\n\n分散投资：不要把所有资金投入单一股票或行业\n\n\n设置止损：控制最大损失\n\n\n保持流动性：不要投资无法承担损失的资金\n\n\n持续学习：不断提高投资知识和技能\n\n\n## 常见错误\n\n\n追涨杀跌：盲目跟风，容易被套\n\n\n过度交易：频繁买卖，增加成本\n\n\n杠杆投资：使用借来的钱投资，风险放大\n\n\n情绪化决策：被贪婪和恐惧左右\n\n\n## 注意事项\n\n\n投资有风险，入市需谨慎。建议在充分了解相关知识和风险后，再进行投资。\n",
+      "```bash\n\nbrew install koekeishiya/formulae/yabai \nbrew tap FelixKratz/formulae\nbrew install borders\nbrew install koekeishiya/formulae/skhd\nskhd --start-service\n# start yabai \nyabai --start-service \n# 写入sudo权限 \necho \"$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d \" \" -f 1) $(which yabai) --load-sa\" | sudo tee /private/etc/sudoers.d/yabai \n# 创建配置文件 \nmkdir -p $HOME/.config/yabai \ncd $HOME/.config/yabai touch yabairc && chmod +x yabairc \nyabai -m signal --add event=dock_did_restart action=\"sudo yabai --load-sa\" \nsudo yabai --load-sa\n```\n",
+      "```python\nclass Subject:\n    def __init__(self):\n        self._observers = []\n\n    def attach(self, observer):\n        self._observers.append(observer)\n\n    def detach(self, observer):\n        self._observers.remove(observer)\n\n    def notify(self):\n        for observer in self._observers:\n            observer.update(self)\n```\n",
+      "```javascript\n// math.js\nexport const add = (a, b) => a + b;\nexport const subtract = (a, b) => a - b;\nexport default multiply;\n\n// main.js\nimport multiply, { add, subtract } from './math.js';\n```\n",
+      "```python\nfrom typing import List, Dict, Set, Tuple\n\nnumbers: List[int] = [1, 2, 3]\nscores: Dict[str, int] = {\"Alice\": 90, \"Bob\": 85}\nunique_items: Set[int] = {1, 2, 3}\ncoordinates: Tuple[int, int] = (10, 20)\n```\n\n\n```python\nfrom typing import Optional, Union\n\ndef find_user(user_id: int) -> Optional[dict]:\n    # 可能返回 None\n    pass\n\ndef process(value: Union[str, int]) -> str:\n    # 处理多种类型\n    return str(value)\n```\n\n\n```python\nfrom typing import TypeVar, Generic\n\nT = TypeVar('T')\n\nclass Stack(Generic[T]):\n    def __init__(self) -> None:\n        self._items: List[T] = []\n\n    def push(self, item: T) -> None:\n        self._items.append(item)\n\n    def pop(self) -> T:\n        return self._items.pop()\n```\n\n\n```python\nfrom pydantic import BaseModel\n\nclass User(BaseModel):\n    name: str\n    age: int\n    email: str\n```\n"
+    ],
+    "scores": [
+      0.6092454503092779,
+      0.4605595920532765,
+      0.4593942547021793,
+      0.4543122688458499,
+      0.45222091600874853
+    ],
+    "avg_score": 0.4871464963838664,
+    "has_results": true,
+    "ground_truth": "基本面分析、技术分析",
+    "keyword_recall": 1.0,
+    "context_relevance": 1.0
+  },
+  {
+    "question": "claude code  Remote Control有哪些限制？",
+    "contexts": [
+      "Remote Control（远程控制）让你可以在手机、平板或任何浏览器上继续使用本地 Claude Code 会话。支持 [claude.ai/code](https://claude.ai/code) 和 Claude 手机应用（iOS/Android）。\n",
+      "**Worktree Hook 事件**: 新增 `WorktreeCreate` 和 `WorktreeRemove` hook 事件，支持在代理 worktree 隔离创建/删除时进行自定义 VCS 设置\n\n\n**环境变量**: 新增 `CLAUDE_CODE_ACCOUNT_UUID`、`CLAUDE_CODE_USER_EMAIL`、`CLAUDE_CODE_ORGANIZATION_UUID` 环境变量供 SDK 调用者同步提供账户信息\n",
+      "```bash\n\nbrew install koekeishiya/formulae/yabai \nbrew tap FelixKratz/formulae\nbrew install borders\nbrew install koekeishiya/formulae/skhd\nskhd --start-service\n# start yabai \nyabai --start-service \n# 写入sudo权限 \necho \"$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d \" \" -f 1) $(which yabai) --load-sa\" | sudo tee /private/etc/sudoers.d/yabai \n# 创建配置文件 \nmkdir -p $HOME/.config/yabai \ncd $HOME/.config/yabai touch yabairc && chmod +x yabairc \nyabai -m signal --add event=dock_did_restart action=\"sudo yabai --load-sa\" \nsudo yabai --load-sa\n```\n",
+      "```javascript\n// const 用于常量，不能重新赋值\nconst PI = 3.14159;\n\n// let 用于可变变量\nlet count = 0;\ncount = 1; // 合法\n```\n\n\n```javascript\n// 传统函数\nfunction add(a, b) {\n  return a + b;\n}\n\n// 箭头函数\nconst add = (a, b) => a + b;\n\n// 带函数体\nconst greet = (name) => {\n  const message = `Hello, ${name}!`;\n  return message;\n};\n```\n\n\n```javascript\n// 数组解构\nconst [first, second] = [1, 2, 3];\n\n// 对象解构\nconst { name, age } = { name: \"Alice\", age: 30 };\n\n// 函数参数解构\nfunction printUser({ name, age }) {\n  console.log(`${name} is ${age} years old`);\n}\n```\n\n\n```javascript\n// Promise\nfetch('/api/data')\n  .then(response => response.json())\n  .then(data => console.log(data))\n  .catch(error => console.error(error));\n\n// async/await\nasync function fetchData() {\n  try {\n    const response = await fetch('/api/data');\n    const data = await response.json();\n    return data;\n  } catch (error) {\n    console.error(error);\n  }\n}\n```\n",
+      "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n"
+    ],
+    "scores": [
+      0.5806737230577455,
+      0.4699965273875275,
+      0.45508708768791667,
+      0.43439081983512157,
+      0.4276118984531032
+    ],
+    "avg_score": 0.47355201128428287,
+    "has_results": true,
+    "ground_truth": "一次一个远程会话,终端必须保持打开,网络中断",
+    "keyword_recall": 0.2,
+    "context_relevance": 0.6666666666666666
+  },
+  {
+    "question": "如何安装google等宽字体：",
+    "contexts": [
+      "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n",
+      "```bash\nbrew tap FelixKratz/formulae\nbrew install sketchybar\nbrew install --cask font-jetbrains-mono-nerd-font\nmkdir -p ~/.config/sketchybar/plugins\ncp $(brew --prefix)/share/sketchybar/examples/sketchybarrc ~/.config/sketchybar/sketchybarrc\ncp -r $(brew --prefix)/share/sketchybar/examples/plugins/ ~/.config/sketchybar/plugins/\nbrew services start sketchybar\n```\n\n\n[https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)\n",
+      "```bash\n\nbrew install koekeishiya/formulae/yabai \nbrew tap FelixKratz/formulae\nbrew install borders\nbrew install koekeishiya/formulae/skhd\nskhd --start-service\n# start yabai \nyabai --start-service \n# 写入sudo权限 \necho \"$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d \" \" -f 1) $(which yabai) --load-sa\" | sudo tee /private/etc/sudoers.d/yabai \n# 创建配置文件 \nmkdir -p $HOME/.config/yabai \ncd $HOME/.config/yabai touch yabairc && chmod +x yabairc \nyabai -m signal --add event=dock_did_restart action=\"sudo yabai --load-sa\" \nsudo yabai --load-sa\n```\n",
+      "```bash\nbrew install -v zellij\nbrew install -v yazi\nbrew install ripgrep \nbrew install ast-grep fzf \nbrew install -v neovim\nbrew install lazygit\nbrew install lazydocker\nbrew install zoxide\nbrew install eza\nbrew install ical-buddy\nbrew install keith/formulae/reminders-cli\nbrew install lua\nbrew install luarocks\nbrew install tree wget ncftp bat\nbrew install btop\n\n# add to zshrc\neval \"$(zoxide init zsh)\"\nalias cd=z\nalias ls=\"eza --icons=always\"\n\n# 安装历史增强插件\nbrew install atuin\necho 'eval \"$(atuin init zsh)\"' >> ~/.zshrc\natuin import zsh # 导入历史\n\n# mermaid 安装neovim可视化、图形化，安装后就能在neovim中看到图片\n# 也可以解决 command not found: mmdc\nnpm install -g @mermaid-js/mermaid-cli\nbrew install imagemagick\n```\n",
+      "# start yabai\n# 写入sudo权限\n# 创建配置文件\n\n```json\n{\n  \"builder\": {\n    \"gc\": {\n      \"defaultKeepStorage\": \"20GB\",\n      \"enabled\": true\n    }\n  },\n  \"experimental\": false,\n  \"registry-mirrors\": [\n    \"https://docker.registry.cyou\",\n    \"https://docker-cf.registry.cyou\",\n    \"https://dockercf.jsdelivr.fyi\",\n    \"https://docker.jsdelivr.fyi\",\n    \"https://dockertest.jsdelivr.fyi\",\n    \"https://mirror.aliyuncs.com\",\n    \"https://dockerproxy.com\",\n    \"https://mirror.baidubce.com\",\n    \"https://docker.m.daocloud.io\",\n    \"https://docker.nju.edu.cn\",\n    \"https://docker.mirrors.sjtug.sjtu.edu.cn\",\n    \"https://docker.mirrors.ustc.edu.cn\",\n    \"https://mirror.iscas.ac.cn\",\n    \"https://docker.rainbond.cc\"\n  ]\n}\n```\n\n\n打开到 docker.destop > setup > resource\n配置cpu、内存\nDisk Image Location\n/Volumes/data/working/docker/data/DockerDesktop\n\n\n```bash\nbrew install mysql-client\n\n# 把下面的命令放到.zshrc中\nexport PATH=\"/opt/homebrew/opt/mysql-client/bin:$PATH\"\n```\n"
+    ],
+    "scores": [
+      0.537047407259922,
+      0.5184793783099106,
+      0.5073700010016021,
+      0.49701784246493974,
+      0.4874054790677773
+    ],
+    "avg_score": 0.5094640216208304,
+    "has_results": true,
+    "ground_truth": "brew install --cask font-noto-sans-mono-cjk-sc",
+    "keyword_recall": 0.6,
+    "context_relevance": 0.25
+  },
+  {
+    "question": "怎么可以解决 command not found: mmdc？",
+    "contexts": [
+      "```bash\nbrew install -v zellij\nbrew install -v yazi\nbrew install ripgrep \nbrew install ast-grep fzf \nbrew install -v neovim\nbrew install lazygit\nbrew install lazydocker\nbrew install zoxide\nbrew install eza\nbrew install ical-buddy\nbrew install keith/formulae/reminders-cli\nbrew install lua\nbrew install luarocks\nbrew install tree wget ncftp bat\nbrew install btop\n\n# add to zshrc\neval \"$(zoxide init zsh)\"\nalias cd=z\nalias ls=\"eza --icons=always\"\n\n# 安装历史增强插件\nbrew install atuin\necho 'eval \"$(atuin init zsh)\"' >> ~/.zshrc\natuin import zsh # 导入历史\n\n# mermaid 安装neovim可视化、图形化，安装后就能在neovim中看到图片\n# 也可以解决 command not found: mmdc\nnpm install -g @mermaid-js/mermaid-cli\nbrew install imagemagick\n```\n",
+      "# start yabai\n# 写入sudo权限\n# 创建配置文件\n\n```json\n{\n  \"builder\": {\n    \"gc\": {\n      \"defaultKeepStorage\": \"20GB\",\n      \"enabled\": true\n    }\n  },\n  \"experimental\": false,\n  \"registry-mirrors\": [\n    \"https://docker.registry.cyou\",\n    \"https://docker-cf.registry.cyou\",\n    \"https://dockercf.jsdelivr.fyi\",\n    \"https://docker.jsdelivr.fyi\",\n    \"https://dockertest.jsdelivr.fyi\",\n    \"https://mirror.aliyuncs.com\",\n    \"https://dockerproxy.com\",\n    \"https://mirror.baidubce.com\",\n    \"https://docker.m.daocloud.io\",\n    \"https://docker.nju.edu.cn\",\n    \"https://docker.mirrors.sjtug.sjtu.edu.cn\",\n    \"https://docker.mirrors.ustc.edu.cn\",\n    \"https://mirror.iscas.ac.cn\",\n    \"https://docker.rainbond.cc\"\n  ]\n}\n```\n\n\n打开到 docker.destop > setup > resource\n配置cpu、内存\nDisk Image Location\n/Volumes/data/working/docker/data/DockerDesktop\n\n\n```bash\nbrew install mysql-client\n\n# 把下面的命令放到.zshrc中\nexport PATH=\"/opt/homebrew/opt/mysql-client/bin:$PATH\"\n```\n",
+      "```bash\n\nbrew install koekeishiya/formulae/yabai \nbrew tap FelixKratz/formulae\nbrew install borders\nbrew install koekeishiya/formulae/skhd\nskhd --start-service\n# start yabai \nyabai --start-service \n# 写入sudo权限 \necho \"$(whoami) ALL=(root) NOPASSWD: sha256:$(shasum -a 256 $(which yabai) | cut -d \" \" -f 1) $(which yabai) --load-sa\" | sudo tee /private/etc/sudoers.d/yabai \n# 创建配置文件 \nmkdir -p $HOME/.config/yabai \ncd $HOME/.config/yabai touch yabairc && chmod +x yabairc \nyabai -m signal --add event=dock_did_restart action=\"sudo yabai --load-sa\" \nsudo yabai --load-sa\n```\n",
+      "```bash\n/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"\n```\n\n\n```bash\nsh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\"\nbrew install zsh-autosuggestions zsh-syntax-highlighting\nbrew install --cask font-meslo-lg-nerd-font\n\n# add to zshrc\nsource $(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh\nsource $(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh\n```\n\n\n```bash\nwget https://www.lua.org/ftp/lua-5.1.5.tar.gz\ntar xzf lua-5.1.5.tar.gz\ncd lua-5.1.5\nmake macosx\nmake INSTALL_TOP=/usr/local/lua@5.1 install\nln -s /usr/local/lua@5.1/bin/lua /usr/local/bin/lua5.1\n```\n",
+      "```bash\nbrew tap FelixKratz/formulae\nbrew install sketchybar\nbrew install --cask font-jetbrains-mono-nerd-font\nmkdir -p ~/.config/sketchybar/plugins\ncp $(brew --prefix)/share/sketchybar/examples/sketchybarrc ~/.config/sketchybar/sketchybarrc\ncp -r $(brew --prefix)/share/sketchybar/examples/plugins/ ~/.config/sketchybar/plugins/\nbrew services start sketchybar\n```\n\n\n[https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection](https://github.com/koekeishiya/yabai/wiki/Disabling-System-Integrity-Protection)\n"
+    ],
+    "scores": [
+      0.5218880975832634,
+      0.5101064973845558,
+      0.5020287060848735,
+      0.4946991765282844,
+      0.4788854127621134
+    ],
+    "avg_score": 0.5015215780686181,
+    "has_results": true,
+    "ground_truth": "npm install -g @mermaid-js/mermaid-cli && brew install imagemagick",
+    "keyword_recall": 1.0,
+    "context_relevance": 0.8571428571428571
+  }
+]

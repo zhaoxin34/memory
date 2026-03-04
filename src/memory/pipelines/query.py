@@ -60,6 +60,7 @@ class QueryPipeline:
         top_k: int = 10,
         filters: dict | None = None,
         repository_id: UUID | None = None,
+        use_hybrid: bool | None = None,
     ) -> list[SearchResult]:
         """Perform semantic search.
 
@@ -68,22 +69,46 @@ class QueryPipeline:
             top_k: Number of results to return
             filters: Optional metadata filters
             repository_id: Optional repository ID (overrides pipeline default)
+            use_hybrid: Use hybrid search (vector + BM25) if available
 
         Returns:
             List of search results with scores
         """
-        logger.info("search_started", query=query, top_k=top_k)
+        logger.info("search_started", query=query, top_k=top_k, use_hybrid=use_hybrid)
 
         # Use provided repository_id or fall back to pipeline default
         repo_id = repository_id or self.repository_id
+
+        # Determine whether to use hybrid search
+        # Default to config setting if not explicitly specified
+        if use_hybrid is None:
+            use_hybrid = self.config.vector_store.hybrid_search.enabled
 
         # Generate query embedding
         query_vector = await self.embedding_provider.embed_text(query)
 
         # Search vector store with repository filtering
-        results = await self.vector_store.search(
-            query_vector, top_k=top_k, repository_id=repo_id, filters=filters
-        )
+        if use_hybrid:
+            # Try hybrid search if enabled
+            try:
+                results = await self.vector_store.hybrid_search(
+                    query_text=query,
+                    query_vector=query_vector,
+                    top_k=top_k,
+                    repository_id=repo_id,
+                    filters=filters,
+                )
+                logger.info("hybrid_search_used", query=query, result_count=len(results))
+            except NotImplementedError:
+                # Fall back to regular vector search if hybrid not supported
+                logger.warning("hybrid_search_not_supported_falling_back", query=query)
+                results = await self.vector_store.search(
+                    query_vector, top_k=top_k, repository_id=repo_id, filters=filters
+                )
+        else:
+            results = await self.vector_store.search(
+                query_vector, top_k=top_k, repository_id=repo_id, filters=filters
+            )
 
         # Enrich results with document metadata
         for result in results:
@@ -100,6 +125,7 @@ class QueryPipeline:
         top_k: int = 5,
         max_context_length: int = 3000,
         repository_id: UUID | None = None,
+        use_hybrid: bool | None = None,
     ) -> tuple[str, list[SearchResult]]:
         """Answer a question using retrieved context.
 
@@ -108,6 +134,7 @@ class QueryPipeline:
             top_k: Number of chunks to retrieve
             max_context_length: Maximum context length in characters
             repository_id: Optional repository ID (overrides pipeline default)
+            use_hybrid: Use hybrid search (vector + BM25) if available
 
         Returns:
             Tuple of (answer, source_chunks)
@@ -115,7 +142,7 @@ class QueryPipeline:
         logger.info("answer_started", query=query)
 
         # Retrieve relevant chunks with repository filtering
-        results = await self.search(query, top_k=top_k, repository_id=repository_id)
+        results = await self.search(query, top_k=top_k, repository_id=repository_id, use_hybrid=use_hybrid)
 
         if not results:
             logger.warning("no_results_found", query=query)

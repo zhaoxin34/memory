@@ -27,7 +27,8 @@
       "Bash(chmod +x:*)",
       "Bash(TRANSFORMERS_NO_ADVISORY_WARNINGS=1 TRANSFORMERS_VERBOSITY=error memory search:*)",
       "Bash(ollama pull:*)",
-      "Bash(ollama list:*)"
+      "Bash(ollama list:*)",
+      "Bash(uv run:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

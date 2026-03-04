@@ -56,6 +56,18 @@ collection_name = "memory"
 [vector_store.extra_params]
 persist_directory = "~/.memory/chroma"
 
+# BM25 configuration (for keyword-based search)
+# Note: Requires chromadb>=1.5.2 and snowballstemmer
+[vector_store.bm25]
+enabled = true # Set to true to enable BM25 sparse embedding generation
+
+# Hybrid search configuration (combines vector and BM25 search)
+[vector_store.hybrid_search]
+enabled = true      # Set to true to enable hybrid search
+vector_weight = 0.7 # Weight for vector search (0.0-1.0)
+bm25_weight = 0.3   # Weight for BM25 search (0.0-1.0)
+rrf_k = 5           # RRF k parameter for rank fusion
+
 # For in-memory storage (no persistence, useful for testing):
 # [vector_store]
 # store_type = "memory"

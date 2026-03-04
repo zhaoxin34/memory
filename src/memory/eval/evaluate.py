@@ -189,9 +189,20 @@ async def run_evaluation(
     pipeline: QueryPipeline,
     top_k: int = 5,
     repository_id: str | None = None,
+    use_hybrid: bool = False,
 ) -> list[dict[str, Any]]:
-    """对每个测试问题运行评估。"""
+    """对每个测试问题运行评估。
+
+    Args:
+        test_data: 测试数据
+        pipeline: 查询管道
+        top_k: 检索结果数量
+        repository_id: 仓库 ID
+        use_hybrid: 是否使用混合搜索
+    """
     results = []
+    search_mode = "混合搜索" if use_hybrid else "向量搜索"
+    console.print(f"[cyan]使用检索模式: {search_mode}[/cyan]")
 
     for i, item in enumerate(test_data):
         question = item["question"]
@@ -203,6 +214,7 @@ async def run_evaluation(
                 question,
                 top_k=top_k,
                 repository_id=repository_id,
+                use_hybrid=use_hybrid,
             )
 
             # 提取上下文和分数
@@ -341,10 +353,26 @@ async def evaluate_cmd(
     repository: str | None = typer.Option("test", help="要评估的 repository 名称"),
     output: Path | None = typer.Option(None, help="输出结果到 JSON 文件"),
 ) -> None:
-    """运行 RAG 评估。"""
+    """运行 RAG 评估。
+
+    混合搜索配置从 config.toml 读取，包括 enabled 和权重设置。
+
+    Args:
+        test_data: 测试数据文件路径
+        top_k: 检索的上下文数量
+        repository: repository 名称
+        output: 输出文件路径
+    """
     # 加载配置
     config = load_config()
     configure_from_config(config.logging)
+
+    # 显示混合搜索配置
+    hybrid_config = config.vector_store.hybrid_search
+    if hybrid_config.enabled:
+        console.print(f"[cyan]混合搜索已启用 - vector_weight: {hybrid_config.vector_weight}, bm25_weight: {hybrid_config.bm25_weight}, rrf_k: {hybrid_config.rrf_k}[/cyan]")
+    else:
+        console.print("[cyan]使用纯向量搜索[/cyan]")
 
     console.print("[yellow]正在初始化管道...[/yellow]")
     pipeline, repository_id = await initialize_pipeline(config, repository)
@@ -354,9 +382,10 @@ async def evaluate_cmd(
     test_cases = load_test_data(test_data)
     console.print(f"[yellow]已加载 {len(test_cases)} 条测试用例[/yellow]")
 
-    # 运行评估
+    # 运行评估（use_hybrid 由配置文件决定）
     console.print("[yellow]运行评估...[/yellow]")
-    results = await run_evaluation(test_cases, pipeline, top_k=top_k, repository_id=repository_id)
+    use_hybrid = config.vector_store.hybrid_search.enabled
+    results = await run_evaluation(test_cases, pipeline, top_k=top_k, repository_id=repository_id, use_hybrid=use_hybrid)
 
     # 打印结果
     print_results(results)
@@ -378,7 +407,10 @@ def main(
     repository: str | None = typer.Option("test", help="要评估的 repository 名称"),
     output: Path | None = typer.Option(None, help="输出结果到 JSON 文件"),
 ) -> None:
-    """运行 RAG 评估。"""
+    """运行 RAG 评估。
+
+    混合搜索配置从 config.toml 读取。
+    """
     asyncio.run(evaluate_cmd(test_data, top_k, repository, output))
 
 

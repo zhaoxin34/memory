@@ -12,7 +12,7 @@
     "ground_truth": "宋江是梁山一百单八将之首，为人仗义疏财"
   },
   {
-    "question": "claude code2.1.51做了哪些变更?",
+    "question": "claude code 2.1.51 做了哪些变更, 对性能优化有帮助?",
     "ground_truth": "改进无头模式启动性能"
   },
   {
@@ -22,5 +22,13 @@
   {
     "question": "claude code  Remote Control有哪些限制？",
     "ground_truth": "一次一个远程会话,终端必须保持打开,网络中断"
+  },
+  {
+    "question": "如何安装google等宽字体：",
+    "ground_truth": "brew install --cask font-noto-sans-mono-cjk-sc"
+  },
+  {
+    "question": "怎么可以解决 command not found: mmdc？",
+    "ground_truth": "npm install -g @mermaid-js/mermaid-cli && brew install imagemagick"
   }
 ]

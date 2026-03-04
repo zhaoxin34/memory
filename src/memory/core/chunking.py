@@ -106,9 +106,38 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
     Returns:
         List of chunks
     """
-    # Use tree-sitter based chunking for Markdown documents (preferred)
+    # Use regex-based markdown chunking for Markdown documents
+    # This provides better control over heading context preservation
     if document.doc_type == DocumentType.MARKDOWN:
-        # Try tree-sitter chunking first
+        # If document has a title and content doesn't start with H1, prepend title as H1
+        # This ensures search results include the filename context
+        content = document.content
+        if document.title:
+            first_line = content.lstrip().split("\n")[0] if content else ""
+            if not first_line.startswith("# "):
+                content = f"# {document.title}\n\n{content}"
+                document.content = content
+        # Use regex-based markdown chunking
+        try:
+            from memory.core.markdown_chunking import chunk_markdown_document
+            chunks = chunk_markdown_document(document, config)
+            if chunks:
+                logger.info(
+                    "document_chunked_with_regex",
+                    document_id=str(document.id),
+                    document_type=document.doc_type.value,
+                    chunk_count=len(chunks),
+                    avg_chunk_size=sum(len(c.content) for c in chunks) // len(chunks) if chunks else 0,
+                )
+                return chunks
+        except Exception as e:
+            logger.warning(
+                "markdown_chunking_failed",
+                document_id=str(document.id),
+                error=str(e),
+            )
+
+        # Fallback to tree-sitter if regex fails
         try:
             from memory.core.tree_sitter_chunking import tree_sitter_chunk_document
             chunks = tree_sitter_chunk_document(document, config)
@@ -122,33 +151,9 @@ def create_chunks(document: Document, config: ChunkingConfig) -> list[Chunk]:
                 )
                 return chunks
         except ImportError:
-            logger.debug("tree_sitter_not_available_using_fallback")
-        except Exception as e:
-            logger.warning(
-                "tree_sitter_chunking_failed",
-                document_id=str(document.id),
-                error=str(e),
-            )
+            logger.debug("tree_sitter_not_available")
 
-        # Fallback to regex-based markdown chunking
-        try:
-            from memory.core.markdown_chunking import chunk_markdown_document
-            chunks = chunk_markdown_document(document, config)
-            if chunks:
-                logger.info(
-                    "document_chunked_with_regex",
-                    document_id=str(document.id),
-                    document_type=document.doc_type.value,
-                    chunk_count=len(chunks),
-                    avg_chunk_size=sum(len(c.content) for c in chunks) // len(chunks) if chunks else 0,
-                )
-                return chunks
-        except ImportError as e:
-            logger.debug(
-                "markdown_chunking_fallback_failed",
-                document_id=str(document.id),
-                error=str(e),
-            )
+    # Default: Use fixed-size chunking for non-Markdown documents
 
     # Default: Use fixed-size chunking for non-Markdown documents
     chunks = []

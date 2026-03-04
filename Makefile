@@ -15,7 +15,7 @@ YELLOW := \033[0;33m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
 
-.PHONY: help install install-dev install-all sync test test-unit test-integration test-specific \
+.PHONY: help install install-dev install-all install-tool sync test test-unit test-integration test-specific \
 	lint format typecheck clean coverage run
 
 # Default target
@@ -30,6 +30,7 @@ help: ## Show this help message
 	@echo "  install          Install core dependencies"
 	@echo "  install-dev     Install development dependencies"
 	@echo "  install-all     Install all dependencies (core + extras)"
+	@echo "  install-tool    Install memory CLI to global (uv tool)"
 	@echo "  sync            Sync dependencies with uv"
 	@echo ""
 	@echo "$(GREEN)Testing:$(NC)"
@@ -67,6 +68,10 @@ install-dev: ## Install development dependencies
 install-all: ## Install all dependencies (core + extras)
 	@echo "$(GREEN)Installing all dependencies...$(NC)"
 	$(UV) sync --extra openai --extra chroma
+
+install-tool: ## Install memory CLI to global (uv tool)
+	@echo "$(GREEN)Installing memory CLI to global...$(NC)"
+	$(UV) tool install . --with openai --with sentence-transformers --with chromadb --with pypdf --with pdfplumber
 
 sync: ## Sync dependencies with uv
 	@echo "$(GREEN)Syncing dependencies...$(NC)"
