@@ -421,7 +421,7 @@ class DoclingPreprocessor:
 
 ## 参考资料
 
-- Memory 项目源码：`/Volumes/data/working/life/memory/src/memory/`
+- Memory 项目源码：`src/memory/`
 - Docling 项目：https://github.com/docling-project/docling
 - Docling 文档：https://docling-project.github.io/docling/
 
@@ -429,7 +429,7 @@ class DoclingPreprocessor:
 
 **报告生成日期**：2026-02-13
 **调研范围**：Memory 项目文档处理现状、Docling 核心能力、集成技术方案
-**建议保存路径**：`/Volumes/data/working/life/memory/docs/docling_integration_report.md`
+**建议保存路径**：`docs/docling_integration_report.md`
 
 ## 结论
 

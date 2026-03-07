@@ -630,14 +630,14 @@ default_mode = "retrieve"  # retrieve, refine, compact, tree_summarize
 
 ## 参考资料
 
-- Memory 项目源码：`/Volumes/data/working/life/memory/src/memory/`
+- Memory 项目源码：`src/memory/`
 - LlamaIndex 官方文档：https://docs.llamaindex.ai/
 
 ---
 
 **报告生成日期**：2026-02-10
 **调研范围**：Memory 项目核心架构、LlamaIndex 核心概念、集成可行性分析
-**建议保存路径**：`/Volumes/data/working/life/memory/docs/llamaindex_integration_report.md`
+**建议保存路径**：`docs/llamaindex_integration_report.md`
 
 ## 结论
 

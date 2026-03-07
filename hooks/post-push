@@ -1,0 +1,15 @@
+#!/bin/bash
+# Post-push hook: run make install-tool after push
+
+echo "Running post-push hook..."
+
+# Check if there's a Makefile
+if [ ! -f "Makefile" ]; then
+    echo "Makefile not found, skipping install-tool"
+    exit 0
+fi
+
+echo "Running make install-tool..."
+make install-tool
+
+echo "Post-push hook completed!"

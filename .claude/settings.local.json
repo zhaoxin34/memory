@@ -28,7 +28,8 @@
       "Bash(TRANSFORMERS_NO_ADVISORY_WARNINGS=1 TRANSFORMERS_VERBOSITY=error memory search:*)",
       "Bash(ollama pull:*)",
       "Bash(ollama list:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(echo # Test:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

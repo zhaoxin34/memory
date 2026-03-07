@@ -19,10 +19,10 @@
 
 **相关文件**
 
-- `/Volumes/data/working/life/memory/config.toml`
-- `/Volumes/data/working/life/memory/src/memory/config/schema.py`
-- `/Volumes/data/working/life/memory/src/memory/providers/openai.py`
-- `/Volumes/data/working/life/memory/src/memory/providers/__init__.py`
+- `config.toml`
+- `src/memory/config/schema.py`
+- `src/memory/providers/openai.py`
+- `src/memory/providers/__init__.py`
 
 **使用方法**
 
