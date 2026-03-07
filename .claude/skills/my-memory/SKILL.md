@@ -1,10 +1,10 @@
 ---
 name: my-memory
-description: 个人知识库管理技能，当用户想要查询、导入、管理知识库时，调用本技能。个人知识库也称作“我的知识库”
+description: 个人知识库管理技能，当用户想要查询、导入，管理知识库时，调用本技能。个人知识库也称作"我的知识库"
 license: MIT
 metadata:
   author: zhaoxin
-  version: "1.1"
+  version: "1.2"
 ---
 
 ## 使用指南
@@ -21,10 +21,16 @@ metadata:
 my-memory.sh search "关键词"
 ```
 
-### 导入文档
+### 同步文档（从仓库根目录）
 
 ```bash
-my-memory.sh ingest /path/to/file
+my-memory.sh sync
+```
+
+### 创建仓库（需要指定根目录）
+
+```bash
+my-memory.sh create /path/to/docs "*.md"
 ```
 
 ### 列出所有仓库

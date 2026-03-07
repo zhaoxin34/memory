@@ -10,14 +10,16 @@ show_help() {
   echo ""
   echo "Commands:"
   echo "  search <query>       搜索知识库"
-  echo "  ingest <path>        导入文档"
-  echo "  list                 列出所有仓库"
-  echo "  info [repo]          查看仓库信息"
-  echo "  clear <repo>         清空仓库文档"
+  echo "  sync                同步文档（从仓库根目录）"
+  echo "  create <root> [pat] 创建仓库（指定根目录和可选的文件模式）"
+  echo "  list                列出所有仓库"
+  echo "  info [repo]         查看仓库信息"
+  echo "  clear <repo>        清空仓库文档"
   echo ""
   echo "Examples:"
   echo "  my-memory search \"Python 技巧\""
-  echo "  my-memory ingest /path/to/file.md"
+  echo "  my-memory sync"
+  echo "  my-memory create /path/to/docs \"*.md\""
   echo "  my-memory list"
 }
 
@@ -31,14 +33,24 @@ cmd_search() {
   memory search "$query" --repository "$DEFAULT_REPO" --top-k 1 --output json
 }
 
-# 导入
-cmd_ingest() {
-  local path="$1"
-  if [ -z "$path" ]; then
-    echo "Error: 请输入文件或目录路径"
+# 同步文档
+cmd_sync() {
+  memory sync --repository "$DEFAULT_REPO"
+}
+
+# 创建仓库
+cmd_create() {
+  local root_path="$1"
+  local pattern="$2"
+  if [ -z "$root_path" ]; then
+    echo "Error: 请输入根目录路径"
     exit 1
   fi
-  memory ingest "$path" --repository "$DEFAULT_REPO" --recursive --include '.*\.md'
+  if [ -n "$pattern" ]; then
+    memory repo create "$DEFAULT_REPO" --root-path "$root_path" --pattern "$pattern"
+  else
+    memory repo create "$DEFAULT_REPO" --root-path "$root_path"
+  fi
 }
 
 # 列出仓库
@@ -66,8 +78,11 @@ case "$1" in
 search)
   cmd_search "$2"
   ;;
-ingest)
-  cmd_ingest "$2"
+sync)
+  cmd_sync
+  ;;
+create)
+  cmd_create "$2" "$3"
   ;;
 list)
   cmd_list
