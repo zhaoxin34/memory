@@ -14,7 +14,6 @@ import asyncio
 import atexit
 import datetime as dt
 import json
-import re
 import sys
 import time
 from collections.abc import Callable
@@ -327,7 +326,7 @@ def render_search_results_text(results: list[SearchResult], query: str) -> str:
     return "\n".join(lines)
 
 
-async def _ensure_default_repository(config: AppConfig):
+async def _ensure_default_repository(config: AppConfig, require_default_repo: bool = True):
     """Ensure default repository exists.
 
     This function initializes the metadata and vector stores,
@@ -335,6 +334,7 @@ async def _ensure_default_repository(config: AppConfig):
 
     Args:
         config: Application configuration
+        require_default_repo: If True, require default repository to exist. If False, allow None.
 
     Returns:
         Tuple of (metadata_store, vector_store, repository)
@@ -356,30 +356,36 @@ async def _ensure_default_repository(config: AppConfig):
 
     # Ensure default repository exists
     repo_manager = RepositoryManager(metadata_store, vector_store)
-    repository = await repo_manager.ensure_default_repository(config.default_repository)
 
-    logger.info("default_repository_ensured", repository_name=repository.name)
+    if require_default_repo:
+        repository = await repo_manager.ensure_default_repository(config.default_repository)
+        logger.info("default_repository_ensured", repository_name=repository.name)
+    else:
+        # Try to get default repository, don't create if not exists
+        repository = await repo_manager.get_repository_by_name(config.default_repository)
+        if repository:
+            logger.info("default_repository_found", repository_name=repository.name)
+        else:
+            logger.info("default_repository_not_required", reason="sync command doesn't require default repo")
 
     return metadata_store, vector_store, repository
 
 
+
 @app.command()
-def ingest(
-    path: Path = typer.Argument(..., help="File or directory to ingest"),
+def sync(
+    repository: str = typer.Option(..., "--repository", "-r", help="Repository name (required)"),
     config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
-    recursive: bool = typer.Option(False, "--recursive", "-r", help="Recursively ingest directory"),
-    repository: str | None = typer.Option(None, "--repository", help="Repository name (defaults to config default_repository)"),
-    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing documents with the same source path"),
-    include: str | None = typer.Option(None, "--include", "-i", help="Regex pattern to filter files (e.g., '.*\\.md' for markdown files)"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force reimport of all files"),
 ):
-    """Ingest documents into the knowledge base."""
+    """Sync documents from repository root directory into the knowledge base."""
     # Record audit start
-    _record_audit_start("ingest", [str(path)])
-    asyncio.run(_ingest_async(path, config_file, recursive, repository, force, include))
+    _record_audit_start("sync", [repository])
+    asyncio.run(_sync_async(repository, config_file, force))
 
 
-async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, repository: str | None, force: bool, include: str | None = None):
-    """Async implementation of ingest command."""
+async def _sync_async(repository: str, config_file: Path | None, force: bool):
+    """Async implementation of sync command."""
     # Import DocumentType at function level to avoid scope issues
     from memory.entities import Document, DocumentType
 
@@ -388,21 +394,23 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
 
     # Show warning if --force flag is used
     if force:
-        console.print("[yellow]WARNING: Using --force flag will overwrite existing documents![/yellow]\n")
+        console.print("[yellow]WARNING: Using --force flag will reimport all files![/yellow]\n")
 
     # Ensure default repository exists
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
-
-    # Use provided repository or fall back to default
-    repo_name = repository or config.default_repository
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Get the repository object
     from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
-    repo = await repo_manager.get_repository_by_name(repo_name)
+    repo = await repo_manager.get_repository_by_name(repository)
 
     if not repo:
-        console.print(f"[red]Repository '{repo_name}' not found[/red]")
+        console.print(f"[red]Repository '{repository}' not found[/red]")
+        return
+
+    # Check if repository has root_path
+    if not repo.root_path or not repo.root_path.exists():
+        console.print(f"[red]Repository '{repository}' has no valid root path: {repo.root_path}[/red]")
         return
 
     # Create embedding provider
@@ -435,58 +443,47 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
             repository_id=repo.id,
         )
 
-        # Collect files to ingest
-        files_to_ingest = []
+        # Get existing documents for this repository
+        existing_docs = await metadata_store.list_documents(repository_id=repo.id, limit=10000)
+        existing_by_relative_path = {doc.relative_path: doc for doc in existing_docs}
 
-        # Compile regex pattern if provided
-        include_pattern = None
-        if include:
-            try:
-                include_pattern = re.compile(include)
-            except re.error:
-                console.print(f"[red]Invalid regex pattern: {include}[/red]")
-                return
+        # Collect files to sync from repository root
+        files_to_sync = []
+
+        # Use fnmatch for pattern matching (supports glob patterns like *.md)
+        import fnmatch
+        include_pattern = repo.pattern
 
         def match_pattern(file_path: Path) -> bool:
             """Check if file matches the include pattern."""
             if include_pattern is None:
                 return True
-            # Match against the full path and the filename
-            return bool(include_pattern.match(str(file_path))) or bool(include_pattern.match(file_path.name))
+            # Match against the relative path and the filename
+            rel_path = file_path.relative_to(repo.root_path)
+            return fnmatch.fnmatch(str(rel_path), include_pattern) or fnmatch.fnmatch(file_path.name, include_pattern)
 
-        if path.is_file():
-            if match_pattern(path):
-                files_to_ingest.append(path)
-        elif path.is_dir():
-            if recursive:
-                # Recursively find all files
-                for file_path in path.rglob("*"):
-                    if file_path.is_file() and match_pattern(file_path):
-                        files_to_ingest.append(file_path)
-            else:
-                # Only files in the directory
-                for file_path in path.iterdir():
-                    if file_path.is_file() and match_pattern(file_path):
-                        files_to_ingest.append(file_path)
-        else:
-            console.print(f"[red]Path not found: {path}[/red]")
+        # Scan root_path recursively
+        for file_path in repo.root_path.rglob("*"):
+            if file_path.is_file() and match_pattern(file_path):
+                files_to_sync.append(file_path)
+
+        if not files_to_sync:
+            console.print(f"[yellow]No files found in repository root: {repo.root_path}[/yellow]")
             return
 
-        if not files_to_ingest:
-            if include:
-                console.print(f"[yellow]No files found matching pattern '{include}'[/yellow]")
-            else:
-                console.print("[yellow]No files found to ingest[/yellow]")
-            return
+        total_files = len(files_to_sync)
+        console.print(f"[cyan]Syncing {total_files} file(s) from repository '{repository}' root: {repo.root_path}[/cyan]")
+        console.print()
 
-        total_files = len(files_to_ingest)
-        pattern_msg = f" (matching '{include}')" if include else ""
-        console.print(f"[cyan]Ingesting {total_files} file(s) into repository '{repo_name}'{pattern_msg}...[/cyan]")
-
-        # Ingest each file
-        success_count = 0
+        # Track file states
+        added_count = 0
+        updated_count = 0
+        skipped_count = 0
+        deleted_count = 0
         error_count = 0
-        overwrite_count = 0
+
+        # Process files
+        files_processed = set()
 
         # Use progress bar for multiple files
         if total_files > 1:
@@ -502,10 +499,14 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
                     total=total_files,
                 )
 
-                for file_path in files_to_ingest:
+                for file_path in files_to_sync:
                     progress.update(main_task, description=f"Processing: {file_path.name}")
 
                     try:
+                        # Calculate relative path
+                        rel_path = str(file_path.relative_to(repo.root_path))
+                        files_processed.add(rel_path)
+
                         # Read file content
                         content = file_path.read_text(encoding="utf-8")
 
@@ -515,23 +516,112 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
 
                         # Detect document type and inject filename as heading
                         if file_ext in (".md", ".markdown"):
-                            # Always prepend filename as H1 heading for better chunk context
-                            # This ensures search results include the filename
                             content = f"# {filename_title}\n\n{content}"
                             doc_type = DocumentType.MARKDOWN
                         else:
-                            # For other text files, prepend as first line
                             content = f"# {filename_title}\n\n{content}"
                             doc_type = DocumentType.TEXT
 
-                        # Calculate MD5 hash of content (after injection)
+                        # Calculate MD5 hash
                         import hashlib
                         content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
 
-                        # Create document object
+                        # Check if document exists
+                        existing_doc = existing_by_relative_path.get(rel_path)
+
+                        if existing_doc:
+                            # Check if content changed
+                            if existing_doc.content_md5 == content_md5 and not force:
+                                # Content unchanged, skip
+                                skipped_count += 1
+                                continue
+
+                            # Content changed or force flag, update document
+                            # Delete old document first
+                            await pipeline.delete_document(existing_doc.id)
+
+                            # Create new document
+                            document = Document(
+                                repository_id=repo.id,
+                                source_path=str(file_path),
+                                relative_path=rel_path,
+                                doc_type=doc_type,
+                                title=filename_title,
+                                content=content,
+                                content_md5=content_md5,
+                                metadata={"file_size": file_path.stat().st_size},
+                            )
+
+                            result = await pipeline.ingest_document(document, force=True)
+                            updated_count += 1
+
+                        else:
+                            # New document
+                            document = Document(
+                                repository_id=repo.id,
+                                source_path=str(file_path),
+                                relative_path=rel_path,
+                                doc_type=doc_type,
+                                title=filename_title,
+                                content=content,
+                                content_md5=content_md5,
+                                metadata={"file_size": file_path.stat().st_size},
+                            )
+
+                            result = await pipeline.ingest_document(document, force=True)
+                            added_count += 1
+
+                    except UnicodeDecodeError:
+                        error_count += 1
+                    except Exception as e:
+                        error_count += 1
+                        logger.error("sync_error", file=str(file_path), error=str(e))
+
+                    progress.advance(main_task)
+
+        else:
+            # Single file
+            file_path = files_to_sync[0]
+            try:
+                console.print(f"  Processing: {file_path}")
+
+                # Calculate relative path
+                rel_path = str(file_path.relative_to(repo.root_path))
+                files_processed.add(rel_path)
+
+                # Read file content
+                content = file_path.read_text(encoding="utf-8")
+
+                # Inject filename as heading
+                filename_title = file_path.stem
+                file_ext = file_path.suffix.lower()
+
+                if file_ext in (".md", ".markdown"):
+                    content = f"# {filename_title}\n\n{content}"
+                    doc_type = DocumentType.MARKDOWN
+                else:
+                    content = f"# {filename_title}\n\n{content}"
+                    doc_type = DocumentType.TEXT
+
+                # Calculate MD5 hash
+                import hashlib
+                content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
+
+                # Check if document exists
+                existing_doc = existing_by_relative_path.get(rel_path)
+
+                if existing_doc:
+                    if existing_doc.content_md5 == content_md5 and not force:
+                        console.print(f"  [dim]→[/dim] Skipped (unchanged): {file_path.name}")
+                        skipped_count += 1
+                    else:
+                        # Delete old and create new
+                        await pipeline.delete_document(existing_doc.id)
+
                         document = Document(
                             repository_id=repo.id,
                             source_path=str(file_path),
+                            relative_path=rel_path,
                             doc_type=doc_type,
                             title=filename_title,
                             content=content,
@@ -539,86 +629,24 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
                             metadata={"file_size": file_path.stat().st_size},
                         )
 
-                        # Ingest document
-                        result = await pipeline.ingest_document(document, force=force)
-
-                        # Check if document was actually updated
-                        if result.updated or result.reason == "new_document":
-                            if result.reason == "content_changed":
-                                overwrite_count += 1
-                            elif result.reason == "forced":
-                                overwrite_count += 1
-                            success_count += 1
-                        # Skipped documents don't increment success_count
-
-                    except UnicodeDecodeError:
-                        error_count += 1
-                    except Exception as e:
-                        error_count += 1
-                        logger.error("ingestion_error", file=str(file_path), error=str(e))
-
-                    progress.advance(main_task)
-
-        else:
-            # Single file - keep it simple
-            file_path = files_to_ingest[0]
-            try:
-                console.print(f"  Processing: {file_path}")
-
-                # Read file content
-                content = file_path.read_text(encoding="utf-8")
-
-                # Inject filename as heading into content for better embedding
-                filename_title = file_path.stem
-                file_ext = file_path.suffix.lower()
-
-                # Detect document type and inject filename as heading
-                if file_ext in (".md", ".markdown"):
-                    # Always prepend filename as H1 heading for better chunk context
-                    # This ensures search results include the filename
-                    content = f"# {filename_title}\n\n{content}"
-                    doc_type = DocumentType.MARKDOWN
+                        result = await pipeline.ingest_document(document, force=True)
+                        console.print(f"  [green]✓[/green] Updated: {file_path.name} ({result.chunk_count} chunks)")
+                        updated_count += 1
                 else:
-                    # For other text files, prepend as first line
-                    content = f"# {filename_title}\n\n{content}"
-                    doc_type = DocumentType.TEXT
+                    document = Document(
+                        repository_id=repo.id,
+                        source_path=str(file_path),
+                        relative_path=rel_path,
+                        doc_type=doc_type,
+                        title=filename_title,
+                        content=content,
+                        content_md5=content_md5,
+                        metadata={"file_size": file_path.stat().st_size},
+                    )
 
-                # Calculate MD5 hash of content (after injection)
-                import hashlib
-                content_md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-
-                # Create document object
-                document = Document(
-                    repository_id=repo.id,
-                    source_path=str(file_path),
-                    doc_type=doc_type,
-                    title=filename_title,
-                    content=content,
-                    content_md5=content_md5,
-                    metadata={"file_size": file_path.stat().st_size},
-                )
-
-                # Ingest document
-                result = await pipeline.ingest_document(document, force=force)
-
-                # Check if document was actually updated
-                if result.updated or result.reason == "new_document":
-                    if result.reason == "content_changed":
-                        console.print(f"  [green]✓[/green] Updated (content changed): {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
-                        overwrite_count += 1
-                        success_count += 1
-                    elif result.reason == "forced":
-                        console.print(f"  [green]✓[/green] Re-imported (forced): {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
-                        overwrite_count += 1
-                        success_count += 1
-                    elif result.reason == "new_document":
-                        console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
-                        success_count += 1
-                    else:
-                        console.print(f"  [green]✓[/green] Ingested: {file_path.name} ({result.chunk_count} chunks, ID: {result.document_id})")
-                        success_count += 1
-                else:
-                    console.print(f"  [dim]→[/dim] Skipped (content unchanged): {file_path.name}")
+                    result = await pipeline.ingest_document(document, force=True)
+                    console.print(f"  [green]✓[/green] Added: {file_path.name} ({result.chunk_count} chunks)")
+                    added_count += 1
 
             except UnicodeDecodeError:
                 console.print(f"  [yellow]⚠[/yellow] Skipped (not a text file): {file_path.name}")
@@ -626,19 +654,25 @@ async def _ingest_async(path: Path, config_file: Path | None, recursive: bool, r
             except Exception as e:
                 console.print(f"  [red]✗[/red] Error: {file_path.name} - {str(e)}")
                 error_count += 1
-                logger.error("ingestion_error", file=str(file_path), error=str(e))
+                logger.error("sync_error", file=str(file_path), error=str(e))
+
+        # Handle deleted files (files in DB but not on disk)
+        for rel_path, doc in existing_by_relative_path.items():
+            if rel_path not in files_processed:
+                # File was deleted or renamed, remove from DB
+                await pipeline.delete_document(doc.id)
+                deleted_count += 1
 
         # Summary
         console.print()
-        if force:
-            console.print(f"[green]Successfully processed: {success_count} file(s)[/green]")
-            console.print(f"  - Overwritten: {overwrite_count}")
-            console.print(f"  - Newly created: {success_count - overwrite_count}")
-        else:
-            console.print(f"[green]Successfully ingested: {success_count} file(s)[/green]")
+        console.print("[green]Sync complete:[/green]")
+        console.print(f"  - Added: {added_count}")
+        console.print(f"  - Updated: {updated_count}")
+        console.print(f"  - Skipped: {skipped_count}")
+        console.print(f"  - Deleted: {deleted_count}")
 
         if error_count > 0:
-            console.print(f"[yellow]Errors: {error_count} file(s)[/yellow]")
+            console.print(f"[yellow]Errors: {error_count}[/yellow]")
 
     finally:
         # Cleanup - always execute
@@ -685,7 +719,7 @@ async def _search_async(
 
     try:
         # Ensure default repository exists
-        metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+        metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
         # Use provided repository or fall back to default
         repo_name = repository or config.default_repository
@@ -797,7 +831,7 @@ async def _ask_async(question: str, top_k: int, config_file: Path | None, reposi
     config = _load_config(config_file)
 
     # Ensure default repository exists
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Use provided repository or fall back to default
     repo_name = repository or config.default_repository
@@ -969,7 +1003,7 @@ async def _chunk_async(
         else:
             # Handle repository document input (UUID or name)
             # Ensure default repository exists and get stores
-            metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+            metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
             # Get the repository object
             from memory.service import RepositoryManager
@@ -1191,23 +1225,36 @@ app.add_typer(repo_app, name="repo")
 @repo_app.command("create")
 def repo_create(
     name: str = typer.Argument(..., help="Repository name (kebab-case)"),
+    root_path: Path = typer.Option(..., "--root-path", "-r", help="Root directory for this repository (absolute path)"),
+    pattern: str | None = typer.Option(None, "--pattern", "-p", help="File pattern to match (e.g., *.md, *.txt)"),
     description: str | None = typer.Option(None, "--description", "-d", help="Repository description"),
     config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Create a new repository."""
-    asyncio.run(_repo_create_async(name, description, config_file))
+    asyncio.run(_repo_create_async(name, root_path, pattern, description, config_file))
 
 
-async def _repo_create_async(name: str, description: str | None, config_file: Path | None):
+async def _repo_create_async(
+    name: str,
+    root_path: Path,
+    pattern: str | None,
+    description: str | None,
+    config_file: Path | None,
+):
     """Async implementation of repo create command."""
     config = _load_config(config_file)
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Create repository manager
     from memory.service import RepositoryManager
     repo_manager = RepositoryManager(metadata_store, vector_store)
+
+    # Convert relative root_path to absolute path
+    if not root_path.is_absolute():
+        root_path = root_path.resolve()
+        console.print(f"[dim]Using absolute path: {root_path}[/dim]")
 
     try:
         # Check if repository already exists
@@ -1219,11 +1266,16 @@ async def _repo_create_async(name: str, description: str | None, config_file: Pa
         # Create new repository
         repository = await repo_manager.create_repository(
             name=name,
+            root_path=root_path,
+            pattern=pattern,
             description=description,
         )
 
         console.print(f"[green]✓[/green] Created repository: {repository.name}")
         console.print(f"  ID: {repository.id}")
+        console.print(f"  Root path: {repository.root_path}")
+        if repository.pattern:
+            console.print(f"  Pattern: {repository.pattern}")
         if repository.description:
             console.print(f"  Description: {repository.description}")
 
@@ -1249,7 +1301,7 @@ async def _repo_list_async(config_file: Path | None):
     config = _load_config(config_file)
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Create repository manager
     from memory.service import RepositoryManager
@@ -1265,6 +1317,7 @@ async def _repo_list_async(config_file: Path | None):
             table = Table(title="Repositories")
             table.add_column("Name", style="cyan")
             table.add_column("ID", style="dim")
+            table.add_column("Root Path", style="blue")
             table.add_column("Description", style="green")
             table.add_column("Documents", style="yellow")
 
@@ -1276,6 +1329,7 @@ async def _repo_list_async(config_file: Path | None):
                 table.add_row(
                     repo.name,
                     str(repo.id),
+                    str(repo.root_path) if repo.root_path else "-",
                     repo.description or "-",
                     str(doc_count),
                 )
@@ -1306,7 +1360,7 @@ async def _repo_info_async(name: str, config_file: Path | None):
     config = _load_config(config_file)
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Create repository manager
     from memory.service import RepositoryManager
@@ -1332,6 +1386,8 @@ async def _repo_info_async(name: str, config_file: Path | None):
 
         table.add_row("ID", str(repository.id))
         table.add_row("Name", repository.name)
+        table.add_row("Root Path", str(repository.root_path))
+        table.add_row("Pattern", repository.pattern or "-")
         table.add_row("Description", repository.description or "-")
         table.add_row("Documents", str(doc_count))
         table.add_row("Total Embeddings", str(embedding_count))
@@ -1377,7 +1433,7 @@ async def _repo_delete_async(name: str, force: bool, config_file: Path | None):
         )
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Create repository manager
     from memory.service import RepositoryManager
@@ -1426,7 +1482,7 @@ async def _repo_clear_async(name: str, dry_run: bool, yes: bool, config_file: Pa
     config = _load_config(config_file)
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     # Create repository manager
     from memory.service import RepositoryManager
@@ -1525,7 +1581,7 @@ async def _doc_query_async(
     repo_name = repository or config.default_repository
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     try:
         # Get repository
@@ -1659,7 +1715,7 @@ async def _doc_info_async(
     repo_name = repository or config.default_repository
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     try:
         # Get repository
@@ -1791,7 +1847,7 @@ async def _doc_delete_async(
     repo_name = repository or config.default_repository
 
     # Ensure default repository exists and get stores
-    metadata_store, vector_store, default_repo = await _ensure_default_repository(config)
+    metadata_store, vector_store, default_repo = await _ensure_default_repository(config, require_default_repo=False)
 
     try:
         # Get repository

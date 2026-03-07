@@ -7,6 +7,7 @@ Provides high-level operations for managing repositories including:
 - Ensuring default repository exists
 """
 
+from pathlib import Path
 from uuid import UUID
 
 from memory.core.logging import get_logger
@@ -36,15 +37,21 @@ class RepositoryManager:
     async def create_repository(
         self,
         name: str,
+        root_path: Path | str,
+        pattern: str | None = None,
         description: str | None = None,
         metadata: dict | None = None,
+        skip_validation: bool = False,
     ) -> Repository:
         """Create a new repository.
 
         Args:
             name: Repository name (must be kebab-case)
+            root_path: Root directory for this repository (absolute path)
+            pattern: Optional file pattern to match (e.g., *.md, *.txt)
             description: Optional description
             metadata: Optional metadata dictionary
+            skip_validation: Skip root_path validation (for testing)
 
         Returns:
             Created repository
@@ -52,22 +59,34 @@ class RepositoryManager:
         Raises:
             RepositoryError: If repository name is invalid or already exists
         """
-        logger.info("repository_create_started", name=name)
+        logger.info("repository_create_started", name=name, root_path=str(root_path))
+
+        # Ensure root_path is a Path object
+        root_path = Path(root_path)
 
         # Check if repository already exists
         existing = await self.metadata_store.get_repository_by_name(name)
         if existing:
             raise RepositoryError(f"Repository '{name}' already exists")
 
+        # Validate root_path exists (skip in tests)
+        if not skip_validation:
+            if not root_path.exists():
+                raise RepositoryError(f"Root path does not exist: {root_path}")
+            if not root_path.is_dir():
+                raise RepositoryError(f"Root path must be a directory: {root_path}")
+
         # Create repository (validation happens in Pydantic model)
         try:
             repository = Repository(
                 name=name,
+                root_path=root_path,
+                pattern=pattern,
                 description=description,
                 metadata=metadata or {},
             )
         except ValueError as e:
-            raise RepositoryError(f"Invalid repository name: {e}") from e
+            raise RepositoryError(f"Invalid repository: {e}") from e
 
         # Store repository
         await self.metadata_store.add_repository(repository)
@@ -213,7 +232,12 @@ class RepositoryManager:
             )
             raise RepositoryError(f"Failed to clear repository: {e}") from e
 
-    async def ensure_default_repository(self, default_name: str = "default") -> Repository:
+    async def ensure_default_repository(
+        self,
+        default_name: str = "default",
+        root_path: Path | None = None,
+        pattern: str | None = None,
+    ) -> Repository:
         """Ensure the default repository exists, creating it if necessary.
 
         This should be called during system initialization to guarantee
@@ -221,6 +245,8 @@ class RepositoryManager:
 
         Args:
             default_name: Name of the default repository
+            root_path: Root directory for the default repository
+            pattern: Optional file pattern to match
 
         Returns:
             The default repository (existing or newly created)
@@ -234,9 +260,17 @@ class RepositoryManager:
             logger.info("default_repository_exists", repository_id=str(repository.id))
             return repository
 
-        # Create default repository
+        # Create default repository (requires root_path)
+        if root_path is None:
+            raise RepositoryError(
+                "Cannot create default repository: root_path is required. "
+                "Please specify a root_path or ensure a default repository exists."
+            )
+
         repository = await self.create_repository(
             name=default_name,
+            root_path=root_path,
+            pattern=pattern,
             description="Default repository for documents",
             metadata={"is_default": True},
         )

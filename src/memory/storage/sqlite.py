@@ -6,6 +6,7 @@ Uses aiosqlite for async operations.
 
 import json
 from datetime import datetime
+from pathlib import Path
 from uuid import UUID
 
 import aiosqlite
@@ -53,6 +54,8 @@ class SQLiteMetadataStore(MetadataStore):
                 CREATE TABLE IF NOT EXISTS repositories (
                     id TEXT PRIMARY KEY,
                     name TEXT UNIQUE NOT NULL,
+                    root_path TEXT NOT NULL,
+                    pattern TEXT,
                     description TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
@@ -60,12 +63,25 @@ class SQLiteMetadataStore(MetadataStore):
                 )
             """)
 
+            # Migration: Add root_path and pattern columns if they don't exist
+            cursor = await self.connection.execute("PRAGMA table_info(repositories)")
+            columns = [row[1] for row in await cursor.fetchall()]
+            if 'root_path' not in columns:
+                await self.connection.execute("""
+                    ALTER TABLE repositories ADD COLUMN root_path TEXT NOT NULL DEFAULT ''
+                """)
+            if 'pattern' not in columns:
+                await self.connection.execute("""
+                    ALTER TABLE repositories ADD COLUMN pattern TEXT
+                """)
+
             # Create documents table with repository_id
             await self.connection.execute("""
                 CREATE TABLE IF NOT EXISTS documents (
                     id TEXT PRIMARY KEY,
                     repository_id TEXT NOT NULL,
                     source_path TEXT NOT NULL,
+                    relative_path TEXT NOT NULL,
                     doc_type TEXT NOT NULL,
                     title TEXT,
                     content TEXT NOT NULL,
@@ -77,13 +93,16 @@ class SQLiteMetadataStore(MetadataStore):
                 )
             """)
 
-            # Migration: Add content_md5 column if it doesn't exist
-            # Check if column exists first
+            # Migration: Add content_md5 and relative_path columns if they don't exist
             cursor = await self.connection.execute("PRAGMA table_info(documents)")
             columns = [row[1] for row in await cursor.fetchall()]
             if 'content_md5' not in columns:
                 await self.connection.execute("""
                     ALTER TABLE documents ADD COLUMN content_md5 TEXT
+                """)
+            if 'relative_path' not in columns:
+                await self.connection.execute("""
+                    ALTER TABLE documents ADD COLUMN relative_path TEXT NOT NULL DEFAULT ''
                 """)
 
             # Create chunks table with repository_id
@@ -137,12 +156,14 @@ class SQLiteMetadataStore(MetadataStore):
         try:
             await self.connection.execute(
                 """
-                INSERT INTO repositories (id, name, description, created_at, updated_at, metadata)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO repositories (id, name, root_path, pattern, description, created_at, updated_at, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(repository.id),
                     repository.name,
+                    str(repository.root_path),
+                    repository.pattern,
                     repository.description,
                     repository.created_at.isoformat(),
                     repository.updated_at.isoformat(),
@@ -175,6 +196,8 @@ class SQLiteMetadataStore(MetadataStore):
             return Repository(
                 id=UUID(row["id"]),
                 name=row["name"],
+                root_path=Path(row["root_path"]),
+                pattern=row["pattern"],
                 description=row["description"],
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -205,6 +228,8 @@ class SQLiteMetadataStore(MetadataStore):
             return Repository(
                 id=UUID(row["id"]),
                 name=row["name"],
+                root_path=Path(row["root_path"]),
+                pattern=row["pattern"],
                 description=row["description"],
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -230,6 +255,8 @@ class SQLiteMetadataStore(MetadataStore):
                 Repository(
                     id=UUID(row["id"]),
                     name=row["name"],
+                    root_path=Path(row["root_path"]),
+                    pattern=row["pattern"],
                     description=row["description"],
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -306,13 +333,14 @@ class SQLiteMetadataStore(MetadataStore):
         try:
             await self.connection.execute(
                 """
-                INSERT INTO documents (id, repository_id, source_path, doc_type, title, content, content_md5, metadata, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO documents (id, repository_id, source_path, relative_path, doc_type, title, content, content_md5, metadata, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(document.id),
                     str(document.repository_id),
                     document.source_path,
+                    document.relative_path,
                     document.doc_type.value,
                     document.title,
                     document.content,
@@ -349,6 +377,7 @@ class SQLiteMetadataStore(MetadataStore):
                 id=UUID(row["id"]),
                 repository_id=UUID(row["repository_id"]),
                 source_path=row["source_path"],
+                relative_path=row["relative_path"],
                 doc_type=DocumentType(row["doc_type"]),
                 title=row["title"],
                 content=row["content"],
@@ -513,6 +542,7 @@ class SQLiteMetadataStore(MetadataStore):
                     id=UUID(row["id"]),
                     repository_id=UUID(row["repository_id"]),
                     source_path=row["source_path"],
+                    relative_path=row["relative_path"],
                     doc_type=DocumentType(row["doc_type"]),
                     title=row["title"],
                     content=row["content"],

@@ -27,7 +27,8 @@ class Document(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     repository_id: UUID = Field(..., description="Repository this document belongs to")
-    source_path: str = Field(..., description="Original path or URL of the document")
+    source_path: str = Field(..., description="Original absolute path of the document")
+    relative_path: str = Field(default="", description="Relative path from repository root")
     doc_type: DocumentType = Field(default=DocumentType.UNKNOWN)
     title: str | None = None
     content: str = Field(..., description="Full text content of the document")

@@ -65,7 +65,9 @@ def load_test_config() -> None:
     """Load configuration for tests."""
     from pathlib import Path
 
-    return load_config(config_path=Path("/Volumes/data/working/life/memory/config.toml"))
+    # Use relative path from project root
+    config_path = Path(__file__).parent.parent.parent / "config.toml"
+    return load_config(config_path=config_path)
 
 
 class TestRecallAccuracy:

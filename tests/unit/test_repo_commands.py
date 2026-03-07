@@ -1,5 +1,6 @@
 """Unit tests for repository management CLI commands."""
 
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -223,6 +224,8 @@ class TestRepoCreateCommand:
         # Run command
         await _repo_create_async(
             name="new-repo",
+            root_path=Path("/tmp/test"),
+            pattern=None,
             description="A new repository",
             config_file=None,
         )

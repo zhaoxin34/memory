@@ -16,7 +16,7 @@ BLUE := \033[0;34m
 NC := \033[0m # No Color
 
 .PHONY: help install install-dev install-all install-tool sync test test-unit test-integration test-specific \
-	lint format typecheck clean coverage run
+	lint format typecheck clean coverage run evaluate
 
 # Default target
 help: ## Show this help message
@@ -48,6 +48,10 @@ help: ## Show this help message
 	@echo "$(GREEN)Development:$(NC)"
 	@echo "  clean            Clean cache files"
 	@echo "  run              Run the CLI application"
+	@echo ""
+	@echo "$(GREEN)Evaluation:$(NC)"
+	@echo "  evaluate         Run evaluation (default: eval/test_data.json)"
+	@echo "  evaluate TEST=xxx  Run evaluation with custom test data"
 	@echo ""
 	@echo "$(GREEN)Examples:$(NC)"
 	@echo "  make install-dev"
@@ -131,3 +135,9 @@ clean: ## Clean cache files
 run: ## Run the CLI application
 	@echo "$(GREEN)Running Memory CLI...$(NC)"
 	$(UV) run memory --help
+
+# Evaluation
+TEST_DATA ?= eval/test_data.json
+evaluate: ## Run evaluation (default: eval/test_data.json)
+	@echo "$(GREEN)Running evaluation with $(TEST_DATA)...$(NC)"
+	$(UV) run python -m memory.eval.evaluate $(TEST_DATA)

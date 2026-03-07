@@ -306,6 +306,16 @@ class IngestionPipeline:
         await self.metadata_store.delete_document(document_id)
         logger.info("cascade_delete_completed", document_id=str(document_id))
 
+    async def delete_document(self, document_id: UUID) -> None:
+        """Delete a document and all its associated data.
+
+        This is a public method to delete a document from the pipeline.
+
+        Args:
+            document_id: ID of document to delete
+        """
+        await self._delete_document_cascade(document_id)
+
     async def ingest_file(self, file_path: Path, repository_id: UUID | None = None) -> UUID:
         """Ingest a file from the filesystem.
 

@@ -1,5 +1,6 @@
 """Unit tests for RepositoryManager."""
 
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -56,7 +57,9 @@ class TestRepositoryManager:
         # Create a repository
         repository = await repo_manager.create_repository(
             name="test-repo",
+            root_path=Path("/tmp/test"),
             description="Test repository",
+            skip_validation=True,
         )
 
         # Add a document
@@ -125,7 +128,9 @@ class TestRepositoryManager:
         # Create a repository with no documents
         repository = await repo_manager.create_repository(
             name="empty-repo",
+            root_path=Path("/tmp/test"),
             description="Empty repository",
+            skip_validation=True,
         )
 
         # Clear repository
@@ -146,7 +151,9 @@ class TestRepositoryManager:
         # Create a repository
         repository = await repo_manager.create_repository(
             name="multi-doc-repo",
+            root_path=Path("/tmp/test"),
             description="Repository with multiple documents",
+            skip_validation=True,
         )
 
         # Add multiple documents
@@ -214,11 +221,15 @@ class TestRepositoryManager:
         # Create two repositories
         repo1 = await repo_manager.create_repository(
             name="repo-1",
+            root_path=Path("/tmp/test1"),
             description="Repository 1",
+            skip_validation=True,
         )
         repo2 = await repo_manager.create_repository(
             name="repo-2",
+            root_path=Path("/tmp/test2"),
             description="Repository 2",
+            skip_validation=True,
         )
 
         # Add document to repo1

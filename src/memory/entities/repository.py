@@ -1,6 +1,7 @@
 """Repository entity - represents a document collection."""
 
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -16,6 +17,8 @@ class Repository(BaseModel):
 
     id: UUID = Field(default_factory=uuid4)
     name: str = Field(..., pattern="^[a-z0-9-]+$", description="Repository name (kebab-case)")
+    root_path: Path = Field(default=Path(""), description="Root directory for this repository (absolute path)")
+    pattern: str | None = Field(None, description="File pattern to match (e.g., *.md, *.txt)")
     description: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

@@ -14,6 +14,7 @@ def test_document_creation():
     doc = Document(
         repository_id=repository_id,
         source_path="/path/to/doc.md",
+        relative_path="doc.md",
         doc_type=DocumentType.MARKDOWN,
         title="Test Document",
         content="This is test content.",
@@ -22,6 +23,7 @@ def test_document_creation():
     assert isinstance(doc.id, UUID)
     assert doc.repository_id == repository_id
     assert doc.source_path == "/path/to/doc.md"
+    assert doc.relative_path == "doc.md"
     assert doc.doc_type == DocumentType.MARKDOWN
     assert doc.title == "Test Document"
     assert doc.content == "This is test content."
@@ -112,6 +114,7 @@ def test_search_result_creation():
     doc = Document(
         repository_id=repository_id,
         source_path="/path/to/doc.md",
+        relative_path="doc.md",
         content="Test content",
     )
     chunk = Chunk(
