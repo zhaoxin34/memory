@@ -29,7 +29,8 @@
       "Bash(ollama pull:*)",
       "Bash(ollama list:*)",
       "Bash(uv run:*)",
-      "Bash(echo # Test:*)"
+      "Bash(echo # Test:*)",
+      "Bash(echo Exit code: $?:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
