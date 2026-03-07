@@ -118,7 +118,7 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
 
 ### Core Layer (`src/memory/core/`)
 - `models.py`: 核心领域模型（Repository, Document, Chunk, Embedding, SearchResult）
-  - Repository: 仓库模型，用于组织和隔离文档集合（kebab-case 命名，包含 root_path 和 pattern）
+  - Repository: 仓库模型，用于组织和隔离文档集合（kebab-case 命名，包含 root_path 和 document_types）
   - Document: 源文档，包含完整内容和元数据，必须属于一个仓库（使用 relative_path）
   - Chunk: 文档分块，用于嵌入和检索，继承父文档的 repository_id
   - Embedding: 向量表示，包含向量和模型信息

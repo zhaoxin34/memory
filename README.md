@@ -48,7 +48,7 @@ uv sync --extra openai --extra chroma
 memory info
 
 # 创建仓库（需要指定根目录）
-memory repo create my-project --root-path /path/to/documents --pattern "*.md"
+memory repo create my-project --root-path /path/to/documents --document-types md
 
 # 列出所有仓库
 memory repo list
@@ -394,7 +394,7 @@ uv run black src/
 
 ```bash
 # 创建仓库（指定根目录和文件模式）
-memory repo create docs --root-path ./docs --pattern "*.md"
+memory repo create docs --root-path ./docs --document-types md
 
 # 同步文档
 memory sync --repository docs
@@ -435,8 +435,8 @@ memory repo list
 memory repo info project-a
 
 # 为不同仓库创建（指定不同的根目录）
-memory repo create project-a --root-path ./project-a-docs --pattern "*.md"
-memory repo create project-b --root-path ./project-b-docs --pattern "*.md"
+memory repo create project-a --root-path ./project-a-docs --document-types md
+memory repo create project-b --root-path ./project-b-docs --document-types md
 
 # 同步文档
 memory sync --repository project-a

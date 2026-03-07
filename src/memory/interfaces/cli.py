@@ -450,21 +450,21 @@ async def _sync_async(repository: str, config_file: Path | None, force: bool):
         # Collect files to sync from repository root
         files_to_sync = []
 
-        # Use fnmatch for pattern matching (supports glob patterns like *.md)
-        import fnmatch
-        include_pattern = repo.pattern
+        # Use document_types for filtering (e.g., ["md", "json"] means only import .md and .json files)
+        # Default to ["md"] if not specified
+        document_types = repo.document_types or ["md"]
 
-        def match_pattern(file_path: Path) -> bool:
-            """Check if file matches the include pattern."""
-            if include_pattern is None:
+        def match_document_types(file_path: Path) -> bool:
+            """Check if file matches the document types."""
+            if not document_types:
                 return True
-            # Match against the relative path and the filename
-            rel_path = file_path.relative_to(repo.root_path)
-            return fnmatch.fnmatch(str(rel_path), include_pattern) or fnmatch.fnmatch(file_path.name, include_pattern)
+            # Match by file extension (e.g., .md, .json)
+            file_ext = file_path.suffix.lower().lstrip(".")
+            return file_ext in document_types
 
         # Scan root_path recursively
         for file_path in repo.root_path.rglob("*"):
-            if file_path.is_file() and match_pattern(file_path):
+            if file_path.is_file() and match_document_types(file_path):
                 files_to_sync.append(file_path)
 
         if not files_to_sync:
@@ -1226,18 +1226,18 @@ app.add_typer(repo_app, name="repo")
 def repo_create(
     name: str = typer.Argument(..., help="Repository name (kebab-case)"),
     root_path: Path = typer.Option(..., "--root-path", "-r", help="Root directory for this repository (absolute path)"),
-    pattern: str | None = typer.Option(None, "--pattern", "-p", help="File pattern to match (e.g., *.md, *.txt)"),
+    document_types: str | None = typer.Option(None, "--document-types", "-t", help="Document types to import (e.g., md,json)"),
     description: str | None = typer.Option(None, "--description", "-d", help="Repository description"),
     config_file: Path | None = typer.Option(None, "--config", "-c", help="Config file path"),
 ):
     """Create a new repository."""
-    asyncio.run(_repo_create_async(name, root_path, pattern, description, config_file))
+    asyncio.run(_repo_create_async(name, root_path, document_types, description, config_file))
 
 
 async def _repo_create_async(
     name: str,
     root_path: Path,
-    pattern: str | None,
+    document_types: str | None,
     description: str | None,
     config_file: Path | None,
 ):
@@ -1256,6 +1256,11 @@ async def _repo_create_async(
         root_path = root_path.resolve()
         console.print(f"[dim]Using absolute path: {root_path}[/dim]")
 
+    # Parse document_types (comma-separated string to list)
+    doc_types = ["md"]  # default
+    if document_types:
+        doc_types = [dt.strip() for dt in document_types.split(",")]
+
     try:
         # Check if repository already exists
         existing = await repo_manager.get_repository_by_name(name)
@@ -1267,15 +1272,14 @@ async def _repo_create_async(
         repository = await repo_manager.create_repository(
             name=name,
             root_path=root_path,
-            pattern=pattern,
+            document_types=doc_types,
             description=description,
         )
 
         console.print(f"[green]✓[/green] Created repository: {repository.name}")
         console.print(f"  ID: {repository.id}")
         console.print(f"  Root path: {repository.root_path}")
-        if repository.pattern:
-            console.print(f"  Pattern: {repository.pattern}")
+        console.print(f"  Document types: {', '.join(repository.document_types)}")
         if repository.description:
             console.print(f"  Description: {repository.description}")
 
@@ -1318,6 +1322,7 @@ async def _repo_list_async(config_file: Path | None):
             table.add_column("Name", style="cyan")
             table.add_column("ID", style="dim")
             table.add_column("Root Path", style="blue")
+            table.add_column("Doc Types", style="magenta")
             table.add_column("Description", style="green")
             table.add_column("Documents", style="yellow")
 
@@ -1330,6 +1335,7 @@ async def _repo_list_async(config_file: Path | None):
                     repo.name,
                     str(repo.id),
                     str(repo.root_path) if repo.root_path else "-",
+                    ",".join(repo.document_types),
                     repo.description or "-",
                     str(doc_count),
                 )
@@ -1387,7 +1393,7 @@ async def _repo_info_async(name: str, config_file: Path | None):
         table.add_row("ID", str(repository.id))
         table.add_row("Name", repository.name)
         table.add_row("Root Path", str(repository.root_path))
-        table.add_row("Pattern", repository.pattern or "-")
+        table.add_row("Document Types", ",".join(repository.document_types) if repository.document_types else "-")
         table.add_row("Description", repository.description or "-")
         table.add_row("Documents", str(doc_count))
         table.add_row("Total Embeddings", str(embedding_count))

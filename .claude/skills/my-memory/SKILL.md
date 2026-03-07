@@ -30,7 +30,7 @@ my-memory.sh sync
 ### 创建仓库（需要指定根目录）
 
 ```bash
-my-memory.sh create /path/to/docs "*.md"
+my-memory.sh create /path/to/docs md
 ```
 
 ### 列出所有仓库

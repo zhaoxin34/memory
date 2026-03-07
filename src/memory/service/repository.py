@@ -38,7 +38,7 @@ class RepositoryManager:
         self,
         name: str,
         root_path: Path | str,
-        pattern: str | None = None,
+        document_types: list[str] | None = None,
         description: str | None = None,
         metadata: dict | None = None,
         skip_validation: bool = False,
@@ -48,7 +48,7 @@ class RepositoryManager:
         Args:
             name: Repository name (must be kebab-case)
             root_path: Root directory for this repository (absolute path)
-            pattern: Optional file pattern to match (e.g., *.md, *.txt)
+            document_types: Document types to import (e.g., ["md", "json"])
             description: Optional description
             metadata: Optional metadata dictionary
             skip_validation: Skip root_path validation (for testing)
@@ -81,7 +81,7 @@ class RepositoryManager:
             repository = Repository(
                 name=name,
                 root_path=root_path,
-                pattern=pattern,
+                document_types=document_types or ["md"],
                 description=description,
                 metadata=metadata or {},
             )

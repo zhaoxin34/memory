@@ -11,7 +11,7 @@ show_help() {
   echo "Commands:"
   echo "  search <query>       搜索知识库"
   echo "  sync                同步文档（从仓库根目录）"
-  echo "  create <root> [pat] 创建仓库（指定根目录和可选的文件模式）"
+  echo "  create <root> [types] 创建仓库（指定根目录和可选的文档类型，如 md,json）"
   echo "  list                列出所有仓库"
   echo "  info [repo]         查看仓库信息"
   echo "  clear <repo>        清空仓库文档"
@@ -19,7 +19,7 @@ show_help() {
   echo "Examples:"
   echo "  my-memory search \"Python 技巧\""
   echo "  my-memory sync"
-  echo "  my-memory create /path/to/docs \"*.md\""
+  echo "  my-memory create /path/to/docs md"
   echo "  my-memory list"
 }
 
@@ -41,13 +41,13 @@ cmd_sync() {
 # 创建仓库
 cmd_create() {
   local root_path="$1"
-  local pattern="$2"
+  local document_types="$2"
   if [ -z "$root_path" ]; then
     echo "Error: 请输入根目录路径"
     exit 1
   fi
-  if [ -n "$pattern" ]; then
-    memory repo create "$DEFAULT_REPO" --root-path "$root_path" --pattern "$pattern"
+  if [ -n "$document_types" ]; then
+    memory repo create "$DEFAULT_REPO" --root-path "$root_path" --document-types "$document_types"
   else
     memory repo create "$DEFAULT_REPO" --root-path "$root_path"
   fi

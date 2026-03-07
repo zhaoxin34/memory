@@ -63,16 +63,16 @@ class SQLiteMetadataStore(MetadataStore):
                 )
             """)
 
-            # Migration: Add root_path and pattern columns if they don't exist
+            # Migration: Add root_path and document_types columns if they don't exist
             cursor = await self.connection.execute("PRAGMA table_info(repositories)")
             columns = [row[1] for row in await cursor.fetchall()]
             if 'root_path' not in columns:
                 await self.connection.execute("""
                     ALTER TABLE repositories ADD COLUMN root_path TEXT NOT NULL DEFAULT ''
                 """)
-            if 'pattern' not in columns:
+            if 'document_types' not in columns:
                 await self.connection.execute("""
-                    ALTER TABLE repositories ADD COLUMN pattern TEXT
+                    ALTER TABLE repositories ADD COLUMN document_types TEXT NOT NULL DEFAULT '["md"]'
                 """)
 
             # Create documents table with repository_id
@@ -156,14 +156,14 @@ class SQLiteMetadataStore(MetadataStore):
         try:
             await self.connection.execute(
                 """
-                INSERT INTO repositories (id, name, root_path, pattern, description, created_at, updated_at, metadata)
+                INSERT INTO repositories (id, name, root_path, document_types, description, created_at, updated_at, metadata)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(repository.id),
                     repository.name,
                     str(repository.root_path),
-                    repository.pattern,
+                    json.dumps(repository.document_types),
                     repository.description,
                     repository.created_at.isoformat(),
                     repository.updated_at.isoformat(),
@@ -197,7 +197,7 @@ class SQLiteMetadataStore(MetadataStore):
                 id=UUID(row["id"]),
                 name=row["name"],
                 root_path=Path(row["root_path"]),
-                pattern=row["pattern"],
+                document_types=json.loads(row["document_types"]),
                 description=row["description"],
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -229,7 +229,7 @@ class SQLiteMetadataStore(MetadataStore):
                 id=UUID(row["id"]),
                 name=row["name"],
                 root_path=Path(row["root_path"]),
-                pattern=row["pattern"],
+                document_types=json.loads(row["document_types"]),
                 description=row["description"],
                 created_at=datetime.fromisoformat(row["created_at"]),
                 updated_at=datetime.fromisoformat(row["updated_at"]),
@@ -256,7 +256,7 @@ class SQLiteMetadataStore(MetadataStore):
                     id=UUID(row["id"]),
                     name=row["name"],
                     root_path=Path(row["root_path"]),
-                    pattern=row["pattern"],
+                    document_types=json.loads(row["document_types"]),
                     description=row["description"],
                     created_at=datetime.fromisoformat(row["created_at"]),
                     updated_at=datetime.fromisoformat(row["updated_at"]),

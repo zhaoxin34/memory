@@ -225,7 +225,7 @@ class TestRepoCreateCommand:
         await _repo_create_async(
             name="new-repo",
             root_path=Path("/tmp/test"),
-            pattern=None,
+            document_types=None,
             description="A new repository",
             config_file=None,
         )
