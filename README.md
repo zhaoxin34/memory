@@ -47,8 +47,8 @@ uv sync --extra openai --extra chroma
 # 显示系统信息
 memory info
 
-# 创建仓库
-memory repo create my-project --description "我的项目文档"
+# 创建仓库（需要指定根目录）
+memory repo create my-project --root-path /path/to/documents --pattern "*.md"
 
 # 列出所有仓库
 memory repo list
@@ -65,8 +65,8 @@ memory repo clear my-project --dry-run
 # 自动确认清空操作（跳过确认提示）
 memory repo clear my-project --yes
 
-# 导入文档到指定仓库
-memory ingest /path/to/documents --repository my-project --recursive
+# 同步文档（从仓库根目录自动检测新增/更新/删除）
+memory sync --repository my-project
 
 # 在指定仓库中搜索信息
 memory search "你的查询内容" --repository my-project --top-k 10
@@ -393,11 +393,11 @@ uv run black src/
 ### 示例 1: 导入和搜索本地文档
 
 ```bash
-# 创建仓库
-memory repo create docs --description "项目文档"
+# 创建仓库（指定根目录和文件模式）
+memory repo create docs --root-path ./docs --pattern "*.md"
 
-# 导入 Markdown 文件
-memory ingest ./docs --repository docs --recursive
+# 同步文档
+memory sync --repository docs
 
 # 搜索相关内容
 memory search "如何配置系统？" --repository docs --top-k 5
@@ -434,9 +434,13 @@ memory repo list
 # 查看仓库统计信息
 memory repo info project-a
 
-# 为不同仓库导入不同文档
-memory ingest ./project-a-docs --repository project-a
-memory ingest ./project-b-docs --repository project-b
+# 为不同仓库创建（指定不同的根目录）
+memory repo create project-a --root-path ./project-a-docs --pattern "*.md"
+memory repo create project-b --root-path ./project-b-docs --pattern "*.md"
+
+# 同步文档
+memory sync --repository project-a
+memory sync --repository project-b
 
 # 在特定仓库中搜索
 memory search "功能" --repository project-a
@@ -456,7 +460,9 @@ memory repo delete project-a
 ```bash
 # 使用 HuggingFace 镜像（中国用户推荐）
 export HF_ENDPOINT=https://hf-mirror.com
-memory ingest ./documents
+# 先创建仓库，然后同步
+memory repo create default --root-path ./documents
+memory sync --repository default
 
 # 或者手动下载模型
 python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"

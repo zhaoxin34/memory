@@ -118,18 +118,18 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
 
 ### Core Layer (`src/memory/core/`)
 - `models.py`: 核心领域模型（Repository, Document, Chunk, Embedding, SearchResult）
-  - Repository: 仓库模型，用于组织和隔离文档集合（kebab-case 命名）
-  - Document: 源文档，包含完整内容和元数据，必须属于一个仓库
+  - Repository: 仓库模型，用于组织和隔离文档集合（kebab-case 命名，包含 root_path 和 pattern）
+  - Document: 源文档，包含完整内容和元数据，必须属于一个仓库（使用 relative_path）
   - Chunk: 文档分块，用于嵌入和检索，继承父文档的 repository_id
   - Embedding: 向量表示，包含向量和模型信息
   - SearchResult: 检索结果，包含分块、分数和文档引用
 - `chunking.py`: 文本分块逻辑，支持可配置的块大小和重叠
 - `repository.py`: RepositoryManager 类，封装仓库 CRUD 操作
-  - `create_repository()`: 创建仓库（包含名称验证和重复检查）
+  - `create_repository()`: 创建仓库（包含 root_path 验证和重复检查）
   - `get_repository()`, `get_repository_by_name()`: 检索仓库
   - `list_repositories()`: 列出所有仓库
   - `delete_repository()`: 删除仓库（级联删除文档、分块、嵌入）
-  - `ensure_default_repository()`: 确保默认仓库存在
+  - `ensure_default_repository()`: 确保默认仓库存在（需要 root_path）
 
 ### Providers Layer (`src/memory/providers/`)
 - `base.py`: EmbeddingProvider 和 LLMProvider 抽象基类
@@ -190,6 +190,7 @@ Query → QueryPipeline(repository_id) → EmbeddingProvider → Query Vector
   - 支持批量处理以提高效率
   - `__init__()` 接受可选的 `repository_id` 参数
   - `ingest_file()` 接受可选的 `repository_id` 参数（覆盖管道默认值）
+  - `delete_document()`: 删除文档及其关联的分块和嵌入
   - 创建的 Document 和 Chunk 都会包含 repository_id
   - **MD5智能覆盖**: 基于内容MD5值的智能检测，实现内容变化时自动覆盖，内容未变化时跳过处理
   - **回滚机制**: 失败时自动回滚到原始文档状态，确保数据一致性
