@@ -205,3 +205,8 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Obsidian Plugin
+obsidian-plugin/main.js
+obsidian-plugin/*.js
+obsidian-plugin/node_modules/

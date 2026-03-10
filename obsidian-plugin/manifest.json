@@ -1,0 +1,9 @@
+{
+  "id": "my-memory-hooks",
+  "name": "My Memory Hook Plugin",
+  "version": "0.0.1",
+  "minAppVersion": "1.4.0",
+  "description": "当文件被保存、修改或重命名后调用my-memory同步",
+  "author": "zhaoxin_34@hotmail.com",
+  "isDesktopOnly": true
+}

@@ -10,6 +10,9 @@ Memory 是一个生产级的个人知识库系统，支持语义搜索和基于 
 
 ## Key Commands
 
+### Obsidian Integration
+- `obsidian-plugin/` - Obsidian 插件目录，监听 .md 文件变化自动调用 `memory sync`
+
 ### Development Setup
 ```bash
 # 安装依赖

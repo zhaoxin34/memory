@@ -16,7 +16,7 @@ BLUE := \033[0;34m
 NC := \033[0m # No Color
 
 .PHONY: help install install-dev install-all install-tool sync test test-unit test-integration test-specific \
-	lint format typecheck clean coverage run evaluate
+	lint format typecheck clean coverage run evaluate install-obsidian-plugin
 
 # Default target
 help: ## Show this help message
@@ -48,6 +48,10 @@ help: ## Show this help message
 	@echo "$(GREEN)Development:$(NC)"
 	@echo "  clean            Clean cache files"
 	@echo "  run              Run the CLI application"
+	@echo ""
+	@echo "$(GREEN)Obsidian Plugin:$(NC)"
+	@echo "  install-obsidian-plugin  Build and install obsidian plugin (default: /Volumes/data/working/my-obsidian)"
+	@echo "  install-obsidian-plugin OBSIDIAN_VAULT=/path/to/vault  Install to custom vault"
 	@echo ""
 	@echo "$(GREEN)Evaluation:$(NC)"
 	@echo "  evaluate         Run evaluation (default: eval/test_data.json)"
@@ -118,6 +122,19 @@ format: ## Format code (black)
 typecheck: ## Run type checker (mypy)
 	@echo "$(GREEN)Running type checker...$(NC)"
 	$(UV) run mypy $(SRC)/
+
+# Obsidian Plugin
+OBSIDIAN_VAULT ?= /Volumes/data/working/my-obsidian
+OBSIDIAN_PLUGIN_DIR := $(OBSIDIAN_VAULT)/.obsidian/plugins/my-memory-hooks
+
+install-obsidian-plugin: ## Build and install obsidian plugin to vault
+	@echo "$(GREEN)Installing obsidian plugin to $(OBSIDIAN_VAULT)...$(NC)"
+	@cd obsidian-plugin && npm install && npm run build
+	@mkdir -p $(OBSIDIAN_PLUGIN_DIR)
+	@cp obsidian-plugin/main.js $(OBSIDIAN_PLUGIN_DIR)/
+	@cp obsidian-plugin/manifest.json $(OBSIDIAN_PLUGIN_DIR)/
+	@echo "$(GREEN)Obsidian plugin installed successfully!$(NC)"
+	@echo "$(YELLOW)Please restart Obsidian and enable the plugin in settings.$(NC)"
 
 # Development
 clean: ## Clean cache files
