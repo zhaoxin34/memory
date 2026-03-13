@@ -18,35 +18,35 @@ metadata:
 ### 搜索知识库
 
 ```bash
-my-memory.sh search "关键词"
+./my-memory.sh search "关键词"
 ```
 
 ### 同步文档（从仓库根目录）
 
 ```bash
-my-memory.sh sync
+./my-memory.sh sync
 ```
 
 ### 创建仓库（需要指定根目录）
 
 ```bash
-my-memory.sh create /path/to/docs md
+./my-memory.sh create /path/to/docs md
 ```
 
 ### 列出所有仓库
 
 ```bash
-my-memory.sh list
+./my-memory.sh list
 ```
 
 ### 查看仓库信息
 
 ```bash
-my-memory.sh info [仓库名]
+./my-memory.sh info [仓库名]
 ```
 
 ### 清空仓库
 
 ```bash
-my-memory.sh clear [仓库名]
+./my-memory.sh clear [仓库名]
 ```
