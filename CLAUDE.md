@@ -49,6 +49,15 @@ uv run ruff check src/
 uv run black src/
 ```
 
+### Make Commands
+```bash
+# 运行评估测试
+make evaluate
+
+# 运行评估测试（自定义测试数据）
+make evaluate TEST=eval/test_data.json
+```
+
 ### Running the CLI
 
 CLI 使用方法请参见 [README.md#基本使用](README.md#基本使用)。
