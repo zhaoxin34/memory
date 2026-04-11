@@ -210,3 +210,4 @@ __marimo__/
 obsidian-plugin/main.js
 obsidian-plugin/*.js
 obsidian-plugin/node_modules/
+graphify-out

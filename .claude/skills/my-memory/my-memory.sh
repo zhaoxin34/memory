@@ -30,7 +30,7 @@ cmd_search() {
     echo "Error: 请输入搜索关键词"
     exit 1
   fi
-  memory search "$query" --repository "$DEFAULT_REPO" --top-k 1 --output json
+  memory search "$query" --repository "$DEFAULT_REPO" --top-k 10 --output json
 }
 
 # 同步文档
